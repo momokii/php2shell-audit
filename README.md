@@ -91,8 +91,12 @@ shows the report produced by this path.
 
 ## Scan Options
 
-The command accepts one or more targets: `scan TARGET...`.
-Only use multiple targets when all are explicitly authorized.
+The command accepts one or more dynamic targets: `scan TARGET...`.
+Only use multiple targets when all are explicitly authorized. Each target is
+normalized, deduplicated, scope-checked, and independently DNS/IP-validated;
+every redirect destination is revalidated before it is followed. Preview any
+dynamic target list first with `--dry-run`, which prints the validated plan
+without DNS, HTTP, logs, or reports.
 
 | Option | Meaning |
 |---|---|
@@ -147,6 +151,13 @@ JSON and JSONL retain report schema version 1 with additive evidence and
 provenance fields; consumers should ignore unknown fields. Existing verdict
 identifiers remain unchanged. CSV is intentionally a compact summary; use
 Markdown or JSON/JSONL for the complete evidence chain.
+
+The advisory snapshot is bundled at `src/php2shell_audit/data/php2shell.json`
+with its `generated_at` date and SHA-256 shown in every full report. It does not
+update itself. Before relying on a finding, compare that date against the cited
+upstream PHP announcements and GHSA advisories; to refresh the data, update the
+JSON, adjust `tests/test_advisory_data.py` for the changed rules, and rerun the
+full test, lint, and type-check suite.
 
 The structured audit log is separate:
 `logs/php2shell-audit-<UTC timestamp with microseconds>.jsonl`. If that exact
