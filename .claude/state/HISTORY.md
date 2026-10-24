@@ -2,6 +2,19 @@
 
 Append-only. Newest entries at the top. One entry per completed or paused session.
 
+## 2026-10-24 - Evidence-backed remote reports completed
+
+Implemented additive schema-1 evidence linkage, cited affected-range comparison,
+request context, advisory provenance, redacted Markdown/JSON/JSONL, and an offline
+synthetic portfolio example. Corrected unsupported advisory ranges and clarified
+the bundled snapshot as project-maintained synthesis.
+
+**Checks:** 608 tests passed with 2 pre-existing Typer warnings; Ruff lint/format
+clean (30 files), strict mypy clean (14 source files), offline `uv build` succeeds.
+Offline QA driver and example generator verify affected, fixed, hidden, unsupported,
+non-PHP, blocked, and empty outcomes without DNS/HTTP. No real target scanned and
+no lab services started.
+
 ## 2026-10-24 - User-authorized local Git initialization
 
 Initialized `main` with the existing Git identity and organized the current project

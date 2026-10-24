@@ -48,6 +48,21 @@ user directs otherwise. Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 | Security Concerns | No environment secrets, generated evidence, local overrides or session artifacts tracked. Gitleaks/trufflehog unavailable; limited pattern/manual review only, no tools installed. |
 | Notes | User requests focused commits for subsequent completed work, without automatic push. No source changes, external scans or lab startup. |
 
+## TASK-005 - Evidence-backed remote assessment reports
+
+| Field | Value |
+|---|---|
+| Task ID | TASK-005 |
+| Name | Evidence-backed remote assessment reports |
+| Priority | High |
+| Status | DONE |
+| Complexity | M |
+| Depends On | TASK-001, TASK-004, explicit user authorization |
+| Scope | Additive schema-1 evidence contract, cited range comparison, request context, provenance, redacted Markdown/JSON/JSONL, synthetic offline example and portfolio docs. No exploits, local agent, new probes, dependencies, remote, or push. |
+| Acceptance Criteria | Affected, fixed, hidden, unsupported, non-PHP, blocked, and failure outcomes report evidence chains with citations and verification; 608 tests pass; Ruff and strict mypy clean; offline build succeeds; synthetic example reproduces without DNS/HTTP. |
+| Security Concerns | No response bodies retained; all nested evidence redacted; provenance is data identity, not authenticity; unsupported branches stay unknown; authorization and target controls unchanged. |
+| Notes | Delegated workers hit model usage limits; main session completed verification and commits. Generated `reports/demo/` remains ignored; `docs/example-report.md` is the labeled synthetic output. |
+
 ## TASK-002 — Add automated security guardrails
 
 | Field | Value |

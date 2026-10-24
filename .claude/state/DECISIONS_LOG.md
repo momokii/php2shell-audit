@@ -5,6 +5,30 @@ short but complete enough for someone who was not in the session.
 
 ---
 
+**Decision:** Implement evidence-backed remote reports with fail-closed version rules.
+
+**Date:** 2026-10-24
+
+**Context:** The user wants a personal portfolio tool that produces credible,
+comprehensive reports without proving exploitability. Delegated workers hit model
+usage limits before finishing.
+
+**Rationale:** Keep report schema version 1 with additive evidence, per-CVE range
+comparison, advisory provenance, and verification guidance. Only documented PHP
+8.2-8.5 branches support decisive verdicts; older, prerelease, unlisted, hidden,
+and configuration-dependent cases stay unknown. Reports label the bundled snapshot
+as project-maintained synthesis and identify bytes by SHA-256 without claiming
+authenticity.
+
+**Security Implications:** No response bodies retained; nested evidence redacted;
+no new probes, credentials, dependencies, or relaxed authorization. Synthetic
+fixtures use `.example.test` hosts and never contact real systems.
+
+**Impact:** Affected-version findings show HTTP evidence, rule comparison,
+references, remediation, and owner verification. TASK-005 is DONE.
+
+---
+
 **Decision:** Establish local `main` with focused initial snapshot commits.
 
 **Date:** 2026-10-24

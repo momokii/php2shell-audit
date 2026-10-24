@@ -103,6 +103,17 @@ controlled storage; do not describe the JSONL audit log as tamper-proof.
 A matching version is not proof of exploitability. A hidden version is not proof
 of safety. WAF presence and SAPI inference cannot replace patch verification.
 
+Evidence-backed reports separate HTTP observations from advisory comparisons.
+Request context records the method, redacted URLs, response status, collection
+time, and bounded-prefix metadata, never a retained response body. Per-CVE
+references and the advisory snapshot date identify the basis for a conclusion.
+The snapshot SHA-256 identifies the exact advisory bytes used; it does not
+authenticate a response, sign the report, or establish exploitability.
+
+Only documented branch rules support decisive version comparisons. Unsupported
+or unlisted branches require owner/vendor verification rather than numerical
+extrapolation. The configuration-dependent issue remains unverified remotely.
+
 ## Reporting a Vulnerability in This Tool
 
 Open a private security report with the repository owner using the repository's

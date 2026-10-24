@@ -1,10 +1,20 @@
 # php2shell-audit
 
-`php2shell-audit` is a detection-only PHP2Shell exposure auditor for authorized
-websites. It collects bounded HTTP evidence, fingerprints PHP where observable,
-maps disclosed versions to a bundled advisory snapshot, and records findings and
-remediation. It does not exploit vulnerabilities, execute code on targets, upload
-files, or prove exploitability.
+`php2shell-audit` is a personal portfolio project for evidence-backed,
+authorized PHP2Shell exposure triage. It is intended for website owners,
+maintainers, and security practitioners working within explicit written scope.
+
+It collects bounded HTTP observations, compares disclosed PHP versions with
+documented advisory rules, and supports remediation review. It does not exploit
+vulnerabilities, execute code on targets, upload files, or prove exploitability.
+
+**Public reachability is not permission to scan.** Use only systems you own or
+have explicit written authorization to assess. Read [Authorized Use](AUTHORIZED_USE.md)
+before scanning; `--authorized` confirms permission you already hold.
+
+Start with the [quickstart](#quickstart), review the
+[example report](docs/example-report.md), or inspect the
+[local QA evidence](docs/qa-evidence.md).
 
 ## Status
 
@@ -14,6 +24,11 @@ and report writers; local QA evidence is recorded in
 [docs/qa-evidence.md](docs/qa-evidence.md). No independent security audit has
 been performed, and no license file has been established yet; no license grant
 is claimed here.
+
+The portfolio focus is the reasoning behind a triage decision: bounded evidence
+collection, explicit uncertainty, source provenance, and actionable remediation.
+Evidence-to-action reports connect each version assessment to its supporting
+observation and advisory rule, as described [below](#reports-and-audit-log).
 
 ## Features
 
@@ -61,6 +76,19 @@ uv run php2shell-audit scan https://your-site.example --authorized --dry-run
 Expected: dry run prints a validated scan plan without fetching the target.
 Captured local command output is in [docs/qa-evidence.md](docs/qa-evidence.md).
 
+### Offline Portfolio Demo
+
+Generate example reports without Docker, DNS lookups, or requests to a website:
+
+```bash
+uv run python examples/generate_report.py
+```
+
+The demo uses controlled HTTP fixtures for affected, fixed, and hidden-version
+outcomes and writes to `reports/demo/`. Its observations are synthetic, not a
+third-party assessment. The committed [example report](docs/example-report.md)
+shows the report produced by this path.
+
 ## Scan Options
 
 The command accepts one or more targets: `scan TARGET...`.
@@ -89,6 +117,19 @@ checkbox is checked.
 
 ## Reports and Audit Log
 
+Each assessment is traceable: **observation and its source -> affected-version
+rule -> conclusion -> recommended action**. Full reports include the observed
+version, supporting HTTP request context, per-CVE range comparison, references,
+remediation, and owner-side verification steps. Scan times and the advisory
+snapshot date/SHA-256 identify when observations were collected and which data
+supported the assessment. The hash is data identity, not a signature or proof
+that a remote banner is authentic.
+
+An affected-version report can substantiate a disclosed version's match to a
+documented range. It does not establish target-specific exploitability or rule
+out vendor backports. Unknown conditions explain what remains to be verified;
+the tool does not manufacture evidence to force a decisive result.
+
 Reports are written under `--output-dir`, normally `reports/`, with UTC-timestamped
 filenames such as `20261024T121516Z.json`. If that stem is already present, the
 writer uses `20261024T121516Z-1`, `-2`, and so on; all selected formats for one
@@ -101,6 +142,11 @@ optional.
 | JSONL | Line-oriented JSON for downstream processing. |
 | Markdown | Summary, per-target details, evidence, remediation, and limitations. |
 | CSV | Tabular results for review and comparison. |
+
+JSON and JSONL retain report schema version 1 with additive evidence and
+provenance fields; consumers should ignore unknown fields. Existing verdict
+identifiers remain unchanged. CSV is intentionally a compact summary; use
+Markdown or JSON/JSONL for the complete evidence chain.
 
 The structured audit log is separate:
 `logs/php2shell-audit-<UTC timestamp with microseconds>.jsonl`. If that exact
@@ -159,8 +205,17 @@ only; no PoC, WordPress, or other exploit fixtures were copied.
 ## Safety and Limitations
 
 - Detection-only: no exploit payloads, uploads, write methods, or credential tests.
-- Version evidence is not exploit proof; observed banners can be incomplete or stale.
-- Hidden PHP versions produce unknown-version verdicts when PHP is detected.
+- An affected-version match is not exploit proof; observed banners can be incomplete,
+  forged, or stale. Confirm the installed runtime and vendor patch status locally.
+- Hidden PHP or version information is not proof that PHP or exposure is absent.
+  Hidden versions produce unknown-version verdicts when PHP is detected.
+- A fixed-version result is not an all-clear: it addresses only the applicable
+  version rule, not every vulnerability, runtime condition, or deployment risk.
+- The bundled, dated advisory snapshot is a project-maintained synthesis of upstream
+  advisories, not an authoritative upstream snapshot or a live vulnerability feed.
+  Review its cited sources and date before relying on a finding.
+- Do not extrapolate confirmed affected or fixed status to older or newer PHP
+  branches outside the documented rules. Verify unsupported branches separately.
 - WAF presence is informational, not proof of protection.
 - Reverse proxies, shared hosting, and distro backports complicate interpretation.
 - Remote evidence cannot confirm the runtime condition for CVE-2026-115560.
@@ -193,7 +248,7 @@ the lab assets, so use `docker compose -f lab/compose.yaml` from the checkout.
 |---|---|
 | `src/php2shell_audit/` | CLI/TUI, safety, recon, assessment, reporting, and domain modules. |
 | `src/php2shell_audit/models.py` | Shared targets, evidence, findings, assessments, verdicts, and configuration. |
-| `src/php2shell_audit/data/php2shell.json` | Authoritative bundled advisory snapshot and references. |
+| `src/php2shell_audit/data/php2shell.json` | Dated, project-maintained synthesis of upstream advisories and references. |
 | `tests/` | Unit, integration, and interface checks specified by the plan. |
 | `lab/` | Loopback-only Compose services and detector fixtures. |
 | `docs/` | Research documentation and captured QA evidence. |
@@ -202,6 +257,7 @@ the lab assets, so use `docker compose -f lab/compose.yaml` from the checkout.
 
 ## Further Reading
 
+- [Example evidence-to-action report](docs/example-report.md).
 - [Research snapshot and fixed-version matrix](docs/php2shell-research.md).
 - [Authorized use and evidence handling](AUTHORIZED_USE.md).
 - [Security policy, controls, and private reporting](SECURITY.md).

@@ -26,14 +26,18 @@ Python 3.12/uv with Typer, Rich, Textual, httpx; final internal review approved.
   initial snapshot commits using the existing identity; no remote or push
 - [x] Git-task verification: 567 tests pass with 2 existing Typer warnings;
   Ruff lint/format clean (26 files), strict mypy clean (12 files)
+- [x] TASK-005: evidence-backed remote assessment reports implemented with cited
+  ranges, request context, provenance, and synthetic portfolio example
+- [x] Evidence verification: 608 tests pass with 2 existing Typer warnings;
+  Ruff lint/format clean (30 files), strict mypy clean (14 files), offline build succeeds
 
 ## In Progress
 
-None for the requested lab task.
+None; evidence-backed reporting work is complete and verified.
 
 ## Blocked
 
-None for the requested lab task.
+None for the requested portfolio reporting task.
 
 ## Open Questions
 
@@ -58,5 +62,5 @@ None for the requested lab task.
 
 ## Last Updated
 
-2026-10-24: local Git initialization and snapshot checks; no source changes or lab startup.
+2026-10-24: evidence-backed reports, offline example, 608-test verification, and docs.
 Keep this file under ~80 lines and move older session summaries to `HISTORY.md`.

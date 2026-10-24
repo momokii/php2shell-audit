@@ -53,3 +53,19 @@ Run the complete test suite, Ruff lint/format, strict mypy, and the offline
 isolated build. Manually generate and inspect reports through the public scanner
 and writer APIs using controlled HTTP fixtures, with no real target scan. The
 portfolio example must come from that report path and be explicitly synthetic.
+
+## Source Review
+
+Primary references checked on 2026-10-24:
+
+- [PHP security announcement](https://www.php.net/archive/2026.php#2026-10-21-5).
+- [OOM corruption advisory](https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w).
+- [Stale global state advisory](https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp).
+- [Session upload progress notice](https://www.php.net/archive/2026.php#2026-10-23-1).
+
+The two full advisories support fixed releases 8.2.35, 8.3.36, 8.4.27, and
+8.5.12. Do not extrapolate that matrix to an unlisted branch. PHP's announcement
+identifies older branches as unsupported and describes minimal source backports
+for 7.4, 8.0, and 8.1; it does not establish this project's former 5.4 lower bound.
+The third issue has an informational notice rather than a published fixed-version
+matrix or PHP severity score. Any project-assigned rating must be labeled as such.
