@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-10-24",
+  "fixed_versions": {"8.2": "8.2.35", "8.3": "8.3.36", "8.4": "8.4.27", "8.5": "8.5.12"},
+  "cves": {
+    "CVE-2026-109618": {
+      "title": "PHP memory corruption during out-of-memory handling",
+      "severity": "critical",
+      "cvss_v4": 9.2,
+      "affected": [
+        {"branch": "5.4-7.x", "range": ">=5.4.0 <8.0.0", "fixed": null, "eol": true, "notes": "No upstream fixed release; minimal source backport available for 7.4 only."},
+        {"branch": "8.0-8.1", "range": ">=8.0.0 <8.2.0", "fixed": null, "eol": true, "notes": "EOL; minimal source backports only, no upstream fixed release."},
+        {"branch": "8.2", "range": ">=8.2.0 <8.2.35", "fixed": "8.2.35"},
+        {"branch": "8.3", "range": ">=8.3.0 <8.3.36", "fixed": "8.3.36"},
+        {"branch": "8.4", "range": ">=8.4.0 <8.4.27", "fixed": "8.4.27"},
+        {"branch": "8.5", "range": ">=8.5.0 <8.5.12", "fixed": "8.5.12"}
+      ],
+      "sapi_notes": "All PHP installations serving web requests are at risk: mod_php, PHP-FPM, php-cgi, LiteSpeed and FrankenPHP. PHP considers mod_php highest risk. SAPI alone does not establish safety or exploitability.",
+      "mitigations": [
+        "Upgrade to the fixed release for the branch or a supported newer release; verify distribution backports with the vendor and restart workers.",
+        "Temporary measures reduce exposure but are not a complete fix. Isolate affected internet-facing services if patching cannot be completed.",
+        "At administrator level, consider memory_limit=-1 with container or cgroup availability limits. Allocation failures remain a risk; do not substitute RLIMIT_AS or RLIMIT_DATA.",
+        "Set post_max_size to 8M without uploads or 32M when uploads are required; keep upload_max_filesize smaller. Apply decoded request-size and input-count limits at the proxy or web server."
+      ],
+      "references": [
+        "https://www.php.net/archive/2026.php#2026-10-21-5",
+        "https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w",
+        "https://www.cisa.gov/news-events/alerts/2026/10/21/critical-vulnerabilities-php-require-immediate-patching",
+        "https://cert.europa.eu/publications/security-advisories/2026-018/",
+        "https://github.com/NCSC-NL/php2shell"
+      ]
+    },
+    "CVE-2026-109619": {
+      "title": "PHP use-after-free through stale request-owned global state",
+      "severity": "critical",
+      "cvss_v4": 9.2,
+      "affected": [
+        {"branch": "5.4-7.x", "range": ">=5.4.0 <8.0.0", "fixed": null, "eol": true, "notes": "No upstream fixed release; minimal source backport available for 7.4 only."},
+        {"branch": "8.0-8.1", "range": ">=8.0.0 <8.2.0", "fixed": null, "eol": true, "notes": "EOL; minimal source backports only, no upstream fixed release."},
+        {"branch": "8.2", "range": ">=8.2.0 <8.2.35", "fixed": "8.2.35"},
+        {"branch": "8.3", "range": ">=8.3.0 <8.3.36", "fixed": "8.3.36"},
+        {"branch": "8.4", "range": ">=8.4.0 <8.4.27", "fixed": "8.4.27"},
+        {"branch": "8.5", "range": ">=8.5.0 <8.5.12", "fixed": "8.5.12"}
+      ],
+      "sapi_notes": "All PHP installations serving web requests are at risk: mod_php, PHP-FPM, php-cgi, LiteSpeed and FrankenPHP. PHP considers mod_php highest risk. A WAF or a different SAPI is not a substitute for patching.",
+      "mitigations": [
+        "Upgrade to the fixed release for the branch or a supported newer release; verify distribution backports with the vendor and restart workers.",
+        "Set session.upload_progress.enabled=0 before request parsing in php.ini, the FPM pool or server configuration; restart every worker. Do not rely on ini_set() or FPM .user.ini. This is partial mitigation only.",
+        "On PHP 8.5 set fatal_error_backtraces=0 and restart workers; this only mitigates the confirmed fatal-backtrace path.",
+        "Remove invalid or deprecated per-request settings that emit early diagnostics; remediate reachable fatal errors and execution timeouts. Hiding diagnostics does not mitigate the issue."
+      ],
+      "references": [
+        "https://www.php.net/archive/2026.php#2026-10-21-5",
+        "https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp",
+        "https://www.cisa.gov/news-events/alerts/2026/10/21/critical-vulnerabilities-php-require-immediate-patching",
+        "https://cert.europa.eu/publications/security-advisories/2026-018/",
+        "https://github.com/NCSC-NL/php2shell"
+      ]
+    },
+    "CVE-2026-115560": {
+      "title": "PHP configuration-dependent session upload progress issue",
+      "severity": "critical",
+      "cvss_v4": 9.2,
+      "rating_notes": "Severity and score are supplied project classifications; PHP has not published a full advisory or CVSS rating for this CVE as of generated_at.",
+      "configuration_dependent": true,
+      "condition": "application sets session.serialize_handler to php_binary or php_serialize, then switches to php at runtime with ini_set() before session_start(), with session.upload_progress.enabled=1",
+      "affected": [
+        {"branch": "configuration-dependent", "range": "Not established by the informational advisory", "fixed": null, "notes": "Do not apply the fixed-version matrix for CVE-2026-109618 and CVE-2026-109619 to this issue."}
+      ],
+      "out_of_band_patch": false,
+      "sapi_notes": "Requires the stated configuration and application behavior. A remote version or SAPI observation alone cannot confirm this condition.",
+      "mitigations": [
+        "session.upload_progress.enabled=0",
+        "Apply the setting before request parsing and restart every worker until the next regular bugfix release. No out-of-band patch is planned."
+      ],
+      "references": [
+        "https://www.php.net/archive/2026.php#2026-10-23-1",
+        "https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp",
+        "https://cert.europa.eu/publications/security-advisories/2026-018/"
+      ]
+    }
+  },
+  "mitigations": [
+    "Only patching fully addresses CVE-2026-109618 and CVE-2026-109619; temporary mitigations and WAF presence do not establish safety.",
+    "Disable session upload progress for CVE-2026-115560; the fixed releases for the first two CVEs do not establish remediation of the third."
+  ],
+  "references": [
+    "https://www.php.net/archive/2026.php#2026-10-21-5",
+    "https://www.php.net/archive/2026.php#2026-10-23-1",
+    "https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w",
+    "https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp",
+    "https://www.cisa.gov/news-events/alerts/2026/10/21/critical-vulnerabilities-php-require-immediate-patching",
+    "https://cert.europa.eu/publications/security-advisories/2026-018/",
+    "https://github.com/NCSC-NL/php2shell"
+  ]
+}
