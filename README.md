@@ -13,8 +13,9 @@ have explicit written authorization to assess. Read [Authorized Use](AUTHORIZED_
 before scanning; `--authorized` confirms permission you already hold.
 
 Start with [How to use](#how-to-use-end-to-end), review the
-[example report](docs/example-report.md), or inspect the
-[local QA evidence](docs/qa-evidence.md).
+[example report](docs/example-report.md), inspect the
+[local QA evidence](docs/qa-evidence.md), or run the
+[loopback lab end to end](#checking-with-the-lab) — no target needed.
 
 ## Status
 
@@ -54,6 +55,17 @@ Out of scope:
 - Uploads, write methods, credential attacks, session hijacking, or evasion.
 - Mass scanning, target discovery, or assessing anything without permission.
 - Proving exploitability or proving a target is safe.
+
+> **No target to scan? No problem.** This repo ships a proper local lab: two
+> loopback-only PHP fixtures (8.4.26 affected, 8.4.27 fixed) plus an automated
+> script that starts the lab, scans both, and checks every verdict. One command,
+> no external website involved:
+>
+> ```bash
+> ./lab/scripts/verify.sh
+> ```
+>
+> See [Checking with the Lab](#checking-with-the-lab) for the full walkthrough.
 
 ## How It Works
 
