@@ -15,8 +15,8 @@ php2shell-audit = "php2shell_audit.cli:app"
 
 [dependency-groups]
 dev = [
-    "pytest~=8.0",
-    "pytest-cov~=6.0",
+    "pytest~=9.0",
+    "pytest-cov~=7.0",
     "ruff~=0.14.0",
     "mypy~=1.18.0",
 ]
@@ -27,6 +27,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.uv]
 package = true
+# Dependency cooldown: ignore packages published within the last 7 days on fresh
+# resolves. Locked pins and --frozen installs are unaffected. See TASK-002.
+exclude-newer = "7 days"
 
 [tool.setuptools.packages.find]
 where = ["src"]
