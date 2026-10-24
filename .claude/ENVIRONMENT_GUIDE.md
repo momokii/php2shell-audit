@@ -40,11 +40,14 @@ web service. No production lab configuration exists.
 Use `docker compose`, not the legacy `docker-compose`.
 
 - `lab/compose.yaml` is the actual configuration. It runs `php:8.4.26-apache` and
-  `php:8.4.27-apache` as detection fixtures, not exploits or real application stacks.
-- Bind addresses are hardcoded to `127.0.0.1`; default ports are 18080 (vulnerable) and
-  18081 (fixed). Healthchecks and `up --wait --wait-timeout 60` enforce readiness.
-- Both services explicitly run as UID/GID 33 with all capabilities dropped, read-only
-  roots, bounded temporary filesystems, and 256 MiB/0.5 CPU/128-process limits.
+  `php:8.4.27-apache` as detection fixtures plus a `busybox:1.36.1` static
+  control, not exploits or real application stacks.
+- Bind addresses are hardcoded to `127.0.0.1`; default ports are 18080
+  (vulnerable), 18081 (fixed), and 18082 (static control). Healthchecks and
+  `up --wait --wait-timeout 60` enforce readiness.
+- The PHP services explicitly run as UID/GID 33 and the static fixture as
+  UID/GID 65534, all with capabilities dropped, read-only roots, bounded
+  temporary filesystems, and 256 MiB/0.5 CPU/128-process limits.
   Webroots are read-only and `no-new-privileges` is set. The low-port sysctl is confined
   to the container network namespace. Old PHP is still not safe for production;
   never publish this lab.
@@ -78,14 +81,17 @@ KEEP_LAB=1 ./lab/scripts/verify.sh
 `uv run php2shell-audit lab up` and `uv run php2shell-audit lab down`; its startup URL
 labels describe defaults, so use `up.sh` for actual overridden addresses.
 
-`verify.sh` starts the lab and scans both actual URLs with
-`--authorized --allow-private --deep --format json`. It validates exact target URLs and
-exact PHP versions and per-CVE verdicts in fresh directories beneath `reports/qa/lab-vulnerable/` and
-`reports/qa/lab-fixed/`, failing explicitly on mismatches. Cleanup runs by default;
-`KEEP_LAB=1` retains services for investigation and requires explicit teardown.
+`verify.sh` starts the lab and scans all three actual URLs with
+`--authorized --allow-private --deep --format json`. It validates exact target URLs,
+exact PHP versions, and per-CVE verdicts in fresh directories beneath
+`reports/qa/lab-vulnerable/` and `reports/qa/lab-fixed/`, plus the `NOT_PHP`
+control outcome with no version and no assessments in
+`reports/qa/lab-static/`, failing explicitly on mismatches. Cleanup runs by
+default; `KEEP_LAB=1` retains services for investigation and requires explicit
+teardown.
 
 For a private remote host, use SSH loopback forwarding only, for example
-`ssh -N -L 127.0.0.1:18080:127.0.0.1:18080 -L 127.0.0.1:18081:127.0.0.1:18081 user@host`.
+`ssh -N -L 127.0.0.1:18080:127.0.0.1:18080 -L 127.0.0.1:18081:127.0.0.1:18081 -L 127.0.0.1:18082:127.0.0.1:18082 user@host`.
 Adjust ports to the actual lab bindings. Never use public forwarding or `-g`.
 
 The agent must **always ask** before any Compose command that is not clearly development.

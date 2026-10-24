@@ -156,9 +156,10 @@ pip-audit dependency audit, Semgrep static analysis, Trivy container scans, and
 a CI pipeline enforcing all of them on every push and pull request. Details in
 [`.claude/README.md`](.claude/README.md) and [`CLAUDE.md`](CLAUDE.md).
 
-**Validated against a real lab.** The loopback-only PHP 8.4.26/8.4.27 pair is
-scanned by an automated script that checks exact target URLs, exact versions,
-and per-CVE verdicts — see [checking with the lab](#checking-with-the-lab)
+**Validated against a real lab.** The loopback-only PHP 8.4.26/8.4.27 fixtures
+plus a static no-PHP control are scanned by an automated script that checks
+exact target URLs, exact versions, per-CVE verdicts, and the `NOT_PHP` control
+outcome — see [checking with the lab](#checking-with-the-lab)
 and [docs/qa-evidence.md](docs/qa-evidence.md).
 
 ## How to Use, End to End

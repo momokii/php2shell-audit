@@ -2,6 +2,13 @@
 
 Append-only. Newest entries at the top. One entry per completed or paused session.
 
+## 2026-10-24 - Docs accuracy sweep for the static control
+
+Fixed stale "pair / both services" wording in README, ENVIRONMENT_GUIDE, and
+verify/how-to references so every doc describes the three-fixture lab.
+Re-verified end to end: 653 tests, all guardrails green, live verify.sh passes
+all three fixtures, lab torn down with no leftovers.
+
 ## 2026-10-24 - Non-PHP lab control fixture completed
 
 Added a hardened busybox static fixture proving the `NOT_PHP` path against a
