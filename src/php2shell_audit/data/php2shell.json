@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "generated_at": "2026-10-24",
+  "notes": "Dated project-maintained synthesis of the cited sources, not an upstream authority or live advisory feed. Verified affected-version mapping is limited to explicitly covered PHP 8.2-8.5 branches; do not extrapolate to unlisted branches.",
   "fixed_versions": {"8.2": "8.2.35", "8.3": "8.3.36", "8.4": "8.4.27", "8.5": "8.5.12"},
   "cves": {
     "CVE-2026-109618": {
@@ -8,13 +9,12 @@
       "severity": "critical",
       "cvss_v4": 9.2,
       "affected": [
-        {"branch": "5.4-7.x", "range": ">=5.4.0 <8.0.0", "fixed": null, "eol": true, "notes": "No upstream fixed release; minimal source backport available for 7.4 only."},
-        {"branch": "8.0-8.1", "range": ">=8.0.0 <8.2.0", "fixed": null, "eol": true, "notes": "EOL; minimal source backports only, no upstream fixed release."},
         {"branch": "8.2", "range": ">=8.2.0 <8.2.35", "fixed": "8.2.35"},
         {"branch": "8.3", "range": ">=8.3.0 <8.3.36", "fixed": "8.3.36"},
         {"branch": "8.4", "range": ">=8.4.0 <8.4.27", "fixed": "8.4.27"},
         {"branch": "8.5", "range": ">=8.5.0 <8.5.12", "fixed": "8.5.12"}
       ],
+      "unsupported_branch_notes": "PHP <=8.1 is unsupported. No upstream fixed release is provided for these branches. PHP provides minimal source backports for 7.4, 8.0 and 8.1; these are not upstream fixed releases. Vendor backports may exist and require vendor verification. This is not a verified affected range for older branches and establishes no lower affected-version bound.",
       "sapi_notes": "All PHP installations serving web requests are at risk: mod_php, PHP-FPM, php-cgi, LiteSpeed and FrankenPHP. PHP considers mod_php highest risk. SAPI alone does not establish safety or exploitability.",
       "mitigations": [
         "Upgrade to the fixed release for the branch or a supported newer release; verify distribution backports with the vendor and restart workers.",
@@ -35,13 +35,12 @@
       "severity": "critical",
       "cvss_v4": 9.2,
       "affected": [
-        {"branch": "5.4-7.x", "range": ">=5.4.0 <8.0.0", "fixed": null, "eol": true, "notes": "No upstream fixed release; minimal source backport available for 7.4 only."},
-        {"branch": "8.0-8.1", "range": ">=8.0.0 <8.2.0", "fixed": null, "eol": true, "notes": "EOL; minimal source backports only, no upstream fixed release."},
         {"branch": "8.2", "range": ">=8.2.0 <8.2.35", "fixed": "8.2.35"},
         {"branch": "8.3", "range": ">=8.3.0 <8.3.36", "fixed": "8.3.36"},
         {"branch": "8.4", "range": ">=8.4.0 <8.4.27", "fixed": "8.4.27"},
         {"branch": "8.5", "range": ">=8.5.0 <8.5.12", "fixed": "8.5.12"}
       ],
+      "unsupported_branch_notes": "PHP <=8.1 is unsupported. No upstream fixed release is provided for these branches. PHP provides minimal source backports for 7.4, 8.0 and 8.1; these are not upstream fixed releases. Vendor backports may exist and require vendor verification. This is not a verified affected range for older branches and establishes no lower affected-version bound.",
       "sapi_notes": "All PHP installations serving web requests are at risk: mod_php, PHP-FPM, php-cgi, LiteSpeed and FrankenPHP. PHP considers mod_php highest risk. A WAF or a different SAPI is not a substitute for patching.",
       "mitigations": [
         "Upgrade to the fixed release for the branch or a supported newer release; verify distribution backports with the vendor and restart workers.",
@@ -61,7 +60,7 @@
       "title": "PHP configuration-dependent session upload progress issue",
       "severity": "critical",
       "cvss_v4": 9.2,
-      "rating_notes": "Severity and score are supplied project classifications; PHP has not published a full advisory or CVSS rating for this CVE as of generated_at.",
+      "rating_notes": "Project-supplied classification only: critical and CVSS v4.0 9.2 are not upstream ratings. PHP has no published upstream severity, CVSS rating or affected range for this CVE and has not published a full advisory as of generated_at.",
       "configuration_dependent": true,
       "condition": "application sets session.serialize_handler to php_binary or php_serialize, then switches to php at runtime with ini_set() before session_start(), with session.upload_progress.enabled=1",
       "affected": [
@@ -75,7 +74,6 @@
       ],
       "references": [
         "https://www.php.net/archive/2026.php#2026-10-23-1",
-        "https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp",
         "https://cert.europa.eu/publications/security-advisories/2026-018/"
       ]
     }

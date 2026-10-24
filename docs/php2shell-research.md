@@ -15,29 +15,39 @@ It has no out-of-band patch in this snapshot. Disable session upload progress
 before request parsing and restart workers. The fixed-version matrix for the
 first two CVEs does not establish remediation of the third.
 
-This document summarizes `src/php2shell_audit/data/php2shell.json`; it is a dated
-snapshot, not a live advisory feed or an exploitation guide.
+This document summarizes `src/php2shell_audit/data/php2shell.json`; both are a
+dated, project-maintained synthesis of the cited sources, not an upstream
+authority, live advisory feed or exploitation guide. Version mapping is limited
+to the explicitly covered PHP 8.2-8.5 branches, without extrapolating affected or
+fixed status to older or newer unlisted branches.
 
 ## CVE Matrix
 
 | CVE | Issue | CVSS v4.0 | Affected branches | Fixed version | Notes |
 |---|---|---|---|---|---|
-| CVE-2026-109618 | Memory corruption during out-of-memory handling | 9.2 | 5.4-7.x; 8.0-8.1 EOL; 8.2.0-8.2.34; 8.3.0-8.3.35; 8.4.0-8.4.26; 8.5.0-8.5.11 | 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 | Critical; EOL branches have no upstream fixed release. |
-| CVE-2026-109619 | Use-after-free through stale request-owned global state | 9.2 | 5.4-7.x; 8.0-8.1 EOL; 8.2.0-8.2.34; 8.3.0-8.3.35; 8.4.0-8.4.26; 8.5.0-8.5.11 | 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 | Critical; same version matrix as CVE-2026-109618. |
+| CVE-2026-109618 | Memory corruption during out-of-memory handling | 9.2 | 8.2.0-8.2.34; 8.3.0-8.3.35; 8.4.0-8.4.26; 8.5.0-8.5.11 | 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 | Critical; unsupported older branches require separate vendor verification. |
+| CVE-2026-109619 | Use-after-free through stale request-owned global state | 9.2 | 8.2.0-8.2.34; 8.3.0-8.3.35; 8.4.0-8.4.26; 8.5.0-8.5.11 | 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12 | Critical; same version matrix as CVE-2026-109618. |
 | CVE-2026-115560 | Configuration-dependent session upload progress issue | 9.2, project-supplied | Not established by the informational advisory | No out-of-band patch | Disable `session.upload_progress.enabled`; do not apply the other CVEs' matrix. |
 
 For CVE-2026-115560, both the critical label and score are supplied project
-classifications. PHP had not published a full advisory or CVSS rating for this
-CVE as of the snapshot date.
+classifications, not upstream ratings. PHP had not published a full advisory,
+severity, CVSS rating or affected-version range for this CVE as of the snapshot
+date. Its references are PHP's October 23 informational notice and CERT-EU;
+GHSA-6wmf-4rv5-p3rp is the advisory for CVE-2026-109619, not a full advisory for
+the third CVE, even where its mitigation guidance is related.
 
 The stated condition is an application starting with `session.serialize_handler`
 set to `php_binary` or `php_serialize`, then switching it to `php` at runtime
 before `session_start()`, while `session.upload_progress.enabled=1`.
 A remote version or SAPI observation cannot confirm that condition.
 
-The snapshot notes minimal source backports for EOL versions, including a 7.4
-backport; these are not upstream fixed releases. Prefer migration to a supported
-branch and verify any vendor-maintained backport with that vendor.
+PHP <=8.1 is unsupported and has no upstream fixed release for the two
+version-mapped CVEs. PHP provides minimal source backports for 7.4, 8.0 and 8.1;
+these are not upstream fixed releases. Vendor backports may exist and require
+verification with that vendor. These support and backport notes do not establish
+a verified affected range or a lower affected-version bound for older branches;
+in particular, a PHP 5.4 lower bound is not verified. Prefer migration to a
+supported branch.
 
 ## What the Tool Observes
 
@@ -112,8 +122,10 @@ validation procedure.
 
 ## References
 
-These URLs are copied from the authoritative advisory JSON, not independently
-revalidated by this documentation task:
+The bundled JSON is a project-maintained synthesis, not the authority for these
+claims. Source checks for this correction verified the PHP October 21 disclosure,
+October 23 informational notice and both PHP GHSAs. The remaining references are
+retained supporting guidance, not independently revalidated in this correction:
 
 - [PHP disclosure, 2026-10-21](https://www.php.net/archive/2026.php#2026-10-21-5)
 - [PHP informational update, 2026-10-23](https://www.php.net/archive/2026.php#2026-10-23-1)

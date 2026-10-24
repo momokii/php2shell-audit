@@ -26,11 +26,11 @@ def test_advisory_schema_when_snapshot_is_loaded() -> None:
     assert advisory["schema_version"] == 1
     assert advisory["generated_at"] == "2026-10-24"
     assert advisory["fixed_versions"] == FIXED_VERSIONS
+    assert "project-maintained synthesis" in advisory["notes"]
+    assert "not an upstream authority" in advisory["notes"]
     assert set(advisory["cves"]) == {"CVE-2026-109618", "CVE-2026-109619", "CVE-2026-115560"}
     for cve in advisory["cves"].values():
         assert cve["title"]
-        assert cve["severity"] == "critical"
-        assert cve["cvss_v4"] == 9.2
         assert cve["affected"]
         assert cve["sapi_notes"]
         assert cve["mitigations"]
@@ -44,15 +44,29 @@ def test_affected_ranges_when_version_based_advisories_are_loaded(cve_id: str) -
 
     affected = {entry["branch"]: entry for entry in advisory["cves"][cve_id]["affected"]}
 
-    assert set(affected) == {"5.4-7.x", "8.0-8.1", *FIXED_VERSIONS}
+    assert set(affected) == set(FIXED_VERSIONS)
+    assert advisory["cves"][cve_id]["severity"] == "critical"
+    assert advisory["cves"][cve_id]["cvss_v4"] == 9.2
     for branch, fixed in FIXED_VERSIONS.items():
         assert affected[branch]["fixed"] == fixed
         assert affected[branch]["range"] == f">={branch}.0 <{fixed}"
-    assert affected["5.4-7.x"]["range"] == ">=5.4.0 <8.0.0"
-    assert affected["8.0-8.1"]["range"] == ">=8.0.0 <8.2.0"
-    for branch in ("5.4-7.x", "8.0-8.1"):
-        assert affected[branch]["fixed"] is None
-        assert affected[branch]["eol"] is True
+
+
+@pytest.mark.parametrize("cve_id", ["CVE-2026-109618", "CVE-2026-109619"])
+def test_unsupported_branches_when_version_based_advisories_are_loaded(cve_id: str) -> None:
+    with DATA_PATH.open(encoding="utf-8") as advisory_file:
+        advisory = json.load(advisory_file)
+
+    cve = advisory["cves"][cve_id]
+
+    assert all(entry["branch"] in FIXED_VERSIONS for entry in cve["affected"])
+    notes = cve["unsupported_branch_notes"]
+    assert "PHP <=8.1 is unsupported" in notes
+    assert "No upstream fixed release" in notes
+    assert "7.4, 8.0 and 8.1" in notes
+    assert "vendor" in notes
+    assert "verification" in notes
+    assert "not a verified affected range" in notes
 
 
 def test_session_issue_condition_when_configuration_dependent_advisory_is_loaded() -> None:
@@ -65,7 +79,26 @@ def test_session_issue_condition_when_configuration_dependent_advisory_is_loaded
     assert cve["condition"] == CONDITION
     assert cve["out_of_band_patch"] is False
     assert all(entry["fixed"] is None for entry in cve["affected"])
+    assert [entry["range"] for entry in cve["affected"]] == [
+        "Not established by the informational advisory"
+    ]
     assert "session.upload_progress.enabled=0" in cve["mitigations"]
+
+
+def test_session_issue_attribution_when_configuration_dependent_advisory_is_loaded() -> None:
+    with DATA_PATH.open(encoding="utf-8") as advisory_file:
+        advisory = json.load(advisory_file)
+
+    cve = advisory["cves"]["CVE-2026-115560"]
+
+    assert cve["severity"] == "critical"
+    assert cve["cvss_v4"] == 9.2
+    assert "Project-supplied" in cve["rating_notes"]
+    assert "no published upstream severity, CVSS rating or affected range" in cve["rating_notes"]
+    assert set(cve["references"]) == {
+        "https://www.php.net/archive/2026.php#2026-10-23-1",
+        "https://cert.europa.eu/publications/security-advisories/2026-018/",
+    }
 
 
 def test_detection_only_keys_when_entire_snapshot_is_loaded() -> None:
