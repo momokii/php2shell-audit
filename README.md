@@ -472,6 +472,10 @@ scripts/checks/container-scan.sh
 scripts/checks/run-all.sh
 ```
 
+Dependency resolution uses a 7-day cooldown (`exclude-newer` in `pyproject.toml`):
+fresh resolves ignore packages published within the last 7 days, while the
+committed `uv.lock` and `--frozen` installs keep builds reproducible.
+
 Local QA evidence, including the lab scans and report excerpts, is recorded in
 [docs/qa-evidence.md](docs/qa-evidence.md). The lab command resolves
 `lab/compose.yaml` from a source checkout; an installed wheel may not include
