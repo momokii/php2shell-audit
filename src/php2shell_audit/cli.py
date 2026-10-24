@@ -279,12 +279,13 @@ def _lab(args: tuple[str, ...]) -> None:
 
 @lab_app.command("up")
 def lab_up() -> None:
-    """Start the loopback-only vulnerable and fixed detection fixtures."""
+    """Start the loopback-only detection fixtures, including the static control."""
     _lab(("up", "-d", "--wait", "--wait-timeout", "60"))
     typer.echo("Lab is ready.")
     typer.echo("DEFAULT ports (not actual URLs when overridden):")
     typer.echo("Vulnerable fixture default: http://127.0.0.1:18080")
     typer.echo("Fixed fixture default: http://127.0.0.1:18081")
+    typer.echo("Static control default: http://127.0.0.1:18082")
     typer.echo("Override ports with lab/.env; use ./lab/scripts/up.sh for actual URLs.")
     typer.echo("Teardown: php2shell-audit lab down (docker compose down -v --remove-orphans).")
 

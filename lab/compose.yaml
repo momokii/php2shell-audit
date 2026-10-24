@@ -29,6 +29,35 @@ services:
     restart: "no"
     security_opt: ["no-new-privileges:true"]
 
+  static:
+    # Intentionally minimal control fixture: one static binary, no package
+    # manager database, no TLS stack. Trivy image scanning therefore finds no
+    # packages to audit (verified no-op); hardening is asserted by unit tests.
+    image: busybox:1.36.1
+    user: "65534:65534"
+    read_only: true
+    cap_drop: [ALL]
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 128
+    sysctls:
+      net.ipv4.ip_unprivileged_port_start: "0"
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+    ports:
+      - "127.0.0.1:${LAB_STATIC_PORT:-18082}:80"
+    volumes:
+      - ./www-static:/www:ro
+    command: ["httpd", "-f", "-p", "80", "-h", "/www"]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 5s
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+
   fixed:
     image: php:8.4.27-apache
     user: "33:33"
