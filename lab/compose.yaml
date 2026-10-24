@@ -1,0 +1,58 @@
+name: php2shell-lab
+
+services:
+  vulnerable:
+    image: php:8.4.26-apache
+    user: "33:33"
+    read_only: true
+    cap_drop: [ALL]
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 128
+    sysctls:
+      net.ipv4.ip_unprivileged_port_start: "0"
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+      - /var/run/apache2:uid=33,gid=33,mode=0755,size=16m
+      - /var/lock/apache2:uid=33,gid=33,mode=0755,size=16m
+    ports:
+      - "127.0.0.1:${LAB_VULNERABLE_PORT:-18080}:80"
+    volumes:
+      - ./www:/var/www/html:ro
+      - ./healthcheck.php:/usr/local/bin/lab-healthcheck.php:ro
+    healthcheck:
+      test: ["CMD", "php", "/usr/local/bin/lab-healthcheck.php"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 5s
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+
+  fixed:
+    image: php:8.4.27-apache
+    user: "33:33"
+    read_only: true
+    cap_drop: [ALL]
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 128
+    sysctls:
+      net.ipv4.ip_unprivileged_port_start: "0"
+    tmpfs:
+      - /tmp:mode=1777,size=64m
+      - /var/run/apache2:uid=33,gid=33,mode=0755,size=16m
+      - /var/lock/apache2:uid=33,gid=33,mode=0755,size=16m
+    ports:
+      - "127.0.0.1:${LAB_FIXED_PORT:-18081}:80"
+    volumes:
+      - ./www:/var/www/html:ro
+      - ./healthcheck.php:/usr/local/bin/lab-healthcheck.php:ro
+    healthcheck:
+      test: ["CMD", "php", "/usr/local/bin/lab-healthcheck.php"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 5s
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
