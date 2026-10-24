@@ -34,6 +34,8 @@ Python 3.12/uv with Typer, Rich, Textual, httpx; final internal review approved.
   pre-commit, Gitleaks, pip-audit, Semgrep, Trivy, and CI all green and fail-closed
 - [x] Guardrail verification: 608 tests pass with 2 existing Typer warnings;
   Ruff lint/format clean (30 files), strict mypy clean (14 files), `uv build` succeeds
+- [x] TASK-006: MIT LICENSE, maintainer self-review (not independent), advisory
+  freshness confirmed current; docs and state updated
 
 ## In Progress
 
@@ -66,5 +68,5 @@ None. No open backlog items remain.
 
 ## Last Updated
 
-2026-10-24: TASK-002 guardrails green; full backlog complete.
+2026-10-24: TASK-006 publication readiness done; everything complete.
 Keep this file under ~80 lines and move older session summaries to `HISTORY.md`.

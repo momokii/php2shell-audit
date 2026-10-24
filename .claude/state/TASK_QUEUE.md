@@ -78,6 +78,21 @@ user directs otherwise. Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 | Security Concerns | Tooling must not receive or print secrets. CI logs must not expose environment values. Actions and images are pinned to immutable versions. Least-privilege tokens for CI. |
 | Notes | User authorized completion 2026-10-24. All gates green locally: pre-commit, Gitleaks, pip-audit (after pytest 8 to 9 remediation), Semgrep, Trivy, 608 tests, Ruff/mypy clean, offline build. CI added with SHA-pinned actions. |
 
+## TASK-006 - Portfolio publication readiness
+
+| Field | Value |
+|---|---|
+| Task ID | TASK-006 |
+| Name | Portfolio publication readiness |
+| Priority | Medium |
+| Status | DONE |
+| Complexity | S |
+| Depends On | TASK-005, explicit user authorization for license choice |
+| Scope | Add MIT LICENSE with the user's git identity; record a dated maintainer security self-review (explicitly not independent); confirm advisory snapshot freshness against upstream sources. No code or behavior changes. |
+| Acceptance Criteria | LICENSE grants MIT terms; self-review documents scope, method, findings, residual risks, and non-independence; snapshot generated_at matches the upstream-verified date with no refresh needed. |
+| Security Concerns | License choice is the user's; self-review must never be presented as an independent audit. No secrets involved. |
+| Notes | Completed 2026-10-24 in one pass per user authorization. Advisory snapshot current as verified; refresh process remains documented in README. |
+
 ## Task Template
 
 ```markdown

@@ -2,6 +2,13 @@
 
 Append-only. Newest entries at the top. One entry per completed or paused session.
 
+## 2026-10-24 - Portfolio publication readiness completed
+
+Added MIT LICENSE (holder from the user's git identity), recorded a dated
+maintainer security self-review with explicit non-independence, and confirmed
+the advisory snapshot is current as of the upstream verification. README and
+SECURITY.md updated to point at both documents.
+
 ## 2026-10-24 - TASK-002 automated guardrails completed
 
 Implemented pre-commit (hooks, Gitleaks 8.30.1, locked Ruff/mypy), pip-audit

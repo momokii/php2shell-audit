@@ -5,6 +5,30 @@ short but complete enough for someone who was not in the session.
 
 ---
 
+**Decision:** MIT license plus labeled maintainer self-review; no independence claimed.
+
+**Date:** 2026-10-24
+
+**Context:** The user authorized completing the remaining publish-readiness items:
+license, review status, and advisory freshness.
+
+**Rationale:** MIT fits a portfolio project (permissive, standard). The holder
+name comes from the user's own git identity. An "independent audit" cannot be
+self-produced, so the review is explicitly framed as a maintainer self-review
+with scope, method, findings, and residual risks — honest signal without
+overclaiming. The advisory snapshot is dated today and matches the
+upstream-verified fixed versions, so no refresh was needed.
+
+**Security Implications:** License text is the standard MIT grant. The review
+document repeats its non-independence wherever the project discusses review
+status, so it cannot be mistaken for certification.
+
+**Impact:** TASK-006 DONE. README and SECURITY.md point to LICENSE and the
+self-review. Remaining follow-ups are operator-side (push, CI first run, real
+targets) or scheduled (advisory refresh).
+
+---
+
 **Decision:** Implement TASK-002 guardrails with pinned tools and triaged findings.
 
 **Date:** 2026-10-24
