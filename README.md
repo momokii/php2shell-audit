@@ -12,6 +12,17 @@ vulnerabilities, execute code on targets, upload files, or prove exploitability.
 have explicit written authorization to assess. Read [Authorized Use](AUTHORIZED_USE.md)
 before scanning; `--authorized` confirms permission you already hold.
 
+## What Makes This Different
+
+Most scanners output a bare label — vulnerable or not — and leave you to trust
+it. This one **shows its work**: every verdict ships with the exact HTTP
+observation behind it, the advisory range it was compared against, the sources
+for that rule, how to fix it, and how to verify the fix. And when the evidence
+cannot support a conclusion — hidden version, unlisted branch, vendor backport,
+configuration-dependent issue — it says **unknown** and tells you what to check
+locally instead of guessing. That traceability, plus authorization gates,
+redaction by default, and a loopback lab anyone can rerun, is the whole point.
+
 Start with [How to use](#how-to-use-end-to-end), review the
 [example report](docs/example-report.md), inspect the
 [local QA evidence](docs/qa-evidence.md), or run the
