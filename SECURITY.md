@@ -5,7 +5,9 @@
 `php2shell-audit` is a detection-only exposure auditor. The controls below are
 the implemented security contract; local QA is recorded in
 [docs/qa-evidence.md](docs/qa-evidence.md). No independent security review has
-been performed.
+been performed. A maintainer self-review is recorded in
+[docs/security-review.md](docs/security-review.md); it is not an independent
+audit and must not be described as one.
 
 Use only with explicit owner authorization. Read [Authorized Use](AUTHORIZED_USE.md)
 before scanning, and treat every remote response as untrusted input.

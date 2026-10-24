@@ -23,8 +23,9 @@ loopback Docker lab. The security contract is enforced by the CLI, TUI, scanner,
 and report writers; local QA evidence is recorded in
 [docs/qa-evidence.md](docs/qa-evidence.md). Automated guardrails (pre-commit,
 secret scan, dependency audit, static analysis, container scan, CI) all pass.
-No independent security audit has been performed, and no license file has been
-established yet; no license grant is claimed here.
+Licensed under the MIT License (see [LICENSE](LICENSE)). No independent
+security audit has been performed; a [maintainer self-review](docs/security-review.md)
+is recorded instead and is explicitly not an independent audit.
 
 The portfolio focus is the reasoning behind a triage decision: bounded evidence
 collection, explicit uncertainty, source provenance, and actionable remediation.
@@ -415,6 +416,7 @@ the lab assets, so use `docker compose -f lab/compose.yaml` from the checkout.
 
 - [Example evidence-to-action report](docs/example-report.md).
 - [Evidence-backed reporting design](docs/evidence-report-design.md).
+- [Maintainer security self-review](docs/security-review.md).
 - [Research snapshot and fixed-version matrix](docs/php2shell-research.md).
 - [Authorized use and evidence handling](AUTHORIZED_USE.md).
 - [Security policy, controls, and private reporting](SECURITY.md).
