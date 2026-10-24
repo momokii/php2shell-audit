@@ -6,12 +6,12 @@ import re
 from collections.abc import Iterable
 from dataclasses import replace
 from datetime import UTC, datetime
-from html import escape
 from pathlib import Path
 from typing import Final
 
 from php2shell_audit.logging import redact_value
-from php2shell_audit.models import Evidence, ScanReport, Target, Verdict
+from php2shell_audit.models import Evidence, JsonValue, ScanReport, Target
+from php2shell_audit.report_markdown import render_markdown
 from php2shell_audit.safety import redact_header, redact_url
 
 _CSV_FIELDS: Final = (
@@ -60,7 +60,7 @@ def _path(report: ScanReport, output_dir: str | Path, stem: str | None, suffix: 
 def _safe_evidence(observations: tuple[Evidence, ...]) -> tuple[Evidence, ...]:
     safe = []
     for item in observations:
-        label = item.source.removeprefix("header:")
+        label = item.source.partition(":")[2] or item.source
         value = (
             redact_header(label, item.value)
             if label.lower() == "set-cookie"
@@ -68,7 +68,14 @@ def _safe_evidence(observations: tuple[Evidence, ...]) -> tuple[Evidence, ...]:
         )
         if item.source.lower().startswith("cookie:"):
             value = "<redacted>"
-        safe.append(replace(item, value=value))
+        request = item.request
+        if request is not None:
+            request = replace(
+                request,
+                requested_url=redact_url(request.requested_url),
+                final_url=redact_url(request.final_url),
+            )
+        safe.append(replace(item, value=value, request=request))
     return tuple(safe)
 
 
@@ -81,6 +88,10 @@ def _safe_report(report: ScanReport) -> ScanReport:
                 target=Target(redact_url(result.target.url)),
                 php=replace(result.php, evidence=_safe_evidence(result.php.evidence)),
                 evidence=_safe_evidence(result.evidence),
+                assessments=tuple(
+                    replace(assessment, evidence=_safe_evidence(assessment.evidence))
+                    for assessment in result.assessments
+                ),
                 findings=tuple(
                     replace(finding, evidence=_safe_evidence(finding.evidence))
                     for finding in result.findings
@@ -105,12 +116,14 @@ def write_jsonl(report: ScanReport, output_dir: str | Path, *, stem: str | None 
     """Write one metadata record followed by one JSON record per target."""
     path = _path(report, output_dir, stem, "jsonl")
     safe = _safe_report(report)
-    metadata = {
+    metadata: dict[str, JsonValue] = {
         "type": "report",
         "schema_version": safe.schema_version,
         "started_at": safe.started_at,
         "finished_at": safe.finished_at,
     }
+    if safe.advisory is not None:
+        metadata["advisory"] = safe.advisory.to_dict()
     with path.open("x", encoding="utf-8") as stream:
         stream.write(json.dumps(metadata, ensure_ascii=False) + "\n")
         for result in safe.results:
@@ -120,124 +133,11 @@ def write_jsonl(report: ScanReport, output_dir: str | Path, *, stem: str | None 
     return path
 
 
-def _cell(value: str) -> str:
-    return (
-        escape(value, quote=False)
-        .replace("|", "\\|")
-        .replace("\r\n", "\n")
-        .replace("\r", "\n")
-        .replace("\n", "<br>")
-    )
-
-
-def _table(headers: tuple[str, ...], rows: Iterable[tuple[str, ...]]) -> str:
-    lines = ["| " + " | ".join(headers) + " |", "| " + " | ".join("---" for _ in headers) + " |"]
-    lines.extend("| " + " | ".join(_cell(value) for value in row) + " |" for row in rows)
-    return "\n".join(lines)
-
-
 def write_markdown(report: ScanReport, output_dir: str | Path, *, stem: str | None = None) -> Path:
     """Write exposure evidence, branch remediation and remote-detection limitations."""
     path = _path(report, output_dir, stem, "md")
-    safe = _safe_report(report)
-    sections = [
-        "# PHP2Shell Audit Report",
-        f"Generated UTC: {datetime.now(UTC).isoformat()}",
-        "> Detection-only: A version match is exposure evidence, not proof of exploitability.",
-        "## Summary",
-        _table(
-            ("Target", "Verdict", "PHP", "SAPI", "WAF", "Requests", "Error"),
-            (
-                (
-                    result.target.url,
-                    result.verdict.value,
-                    result.php.version
-                    or ("detected; version unknown" if result.php.detected else "not detected"),
-                    result.php.sapi.value,
-                    result.waf.value,
-                    str(result.requests_made),
-                    result.error or "",
-                )
-                for result in safe.results
-            ),
-        ),
-    ]
-    for result in safe.results:
-        sections.extend(
-            [
-                f"## Target: {_cell(result.target.url)}",
-                f"Verdict: {result.verdict.value}",
-                "### PHP Evidence",
-                _table(
-                    ("Source", "Value"), ((item.source, item.value) for item in result.php.evidence)
-                ),
-                "### Assessments",
-                _table(
-                    ("CVE", "Verdict", "Reason", "Fixed version"),
-                    (
-                        (
-                            item.cve_id,
-                            item.verdict.value,
-                            item.reason,
-                            item.fixed_version or "not established",
-                        )
-                        for item in result.assessments
-                    ),
-                ),
-                "### Findings",
-                _table(
-                    ("Severity", "Title", "Mitigation"),
-                    (
-                        (item.severity.value, item.title, item.mitigation or "")
-                        for item in result.findings
-                    ),
-                ),
-                "### Evidence",
-                _table(
-                    ("Source", "Value"),
-                    (
-                        (item.source, item.value)
-                        for item in (
-                            *result.evidence,
-                            *(item for finding in result.findings for item in finding.evidence),
-                        )
-                    ),
-                ),
-            ]
-        )
-    sections.append("## Remediation")
-    for result in safe.results:
-        for assessment in result.assessments:
-            if assessment.verdict == Verdict.VULNERABLE_VERSION:
-                upgrade = (
-                    f"upgrade to the branch fixed version {assessment.fixed_version} "
-                    "or a supported newer release"
-                    if assessment.fixed_version
-                    else "upgrade to a supported patched PHP branch"
-                )
-                sections.append(
-                    f"- {_cell(result.target.url)} ({assessment.cve_id}): {upgrade}; "
-                    "restart PHP-FPM/Apache workers and verify the serving runtime."
-                )
-    sections.extend(
-        [
-            "- For CVE-2026-115560, apply `session.upload_progress.enabled=0` before request "
-            "parsing and restart every worker. Fixed versions for CVE-2026-109618 and "
-            "CVE-2026-109619 do not establish remediation of this configuration-dependent issue. "
-            "Its severity and score are project-supplied classifications, "
-            "not a published PHP rating.",
-            "- Unknown versions require server-side verification of the runtime "
-            "and vendor patch status.",
-            "## Limitations",
-            "Hidden `X-Powered-By`, WAF stripping, reverse proxies, shared hosting, "
-            "and distro backports "
-            "can obscure or change version evidence. Banners can be stale. WAF presence does not "
-            "establish protection, and remote evidence cannot confirm "
-            "configuration-dependent conditions.",
-        ]
-    )
     with path.open("x", encoding="utf-8") as stream:
-        stream.write("\n\n".join(sections) + "\n")
+        stream.write(render_markdown(_safe_report(report)))
     return path
 
 

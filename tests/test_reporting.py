@@ -86,10 +86,12 @@ def test_json_preserves_report_structure(tmp_path: Path, report: ScanReport) -> 
     data = json.loads(path.read_text())
     assert data == report.to_dict()
     assert data["schema_version"] == 1
+    assert "advisory" not in data
     result = data["results"][0]
     assert result["target"]["url"] == "https://vulnerable.example.test/"
     assert result["verdict"] == "VULNERABLE_VERSION"
     assert result["assessments"][0]["fixed_version"] == "8.4.27"
+    assert result["php"]["evidence"] == [{"source": "header:X-Powered-By", "value": "PHP/8.4.26"}]
     assert path.read_bytes().endswith(b"\n")
 
 
@@ -271,6 +273,12 @@ def test_raw_sensitive_evidence_is_redacted_in_every_format(
                 (Evidence("header:X-Api-Key", "fixture-authorization"),),
             ),
         ),
+        assessments=(
+            replace(
+                report.results[0].assessments[0],
+                evidence=(Evidence("header:Authorization", "Bearer fixture-authorization"),),
+            ),
+        ),
     )
     for path in write_all(replace(report, results=(target,)), tmp_path).values():
         text = path.read_text()
@@ -284,3 +292,21 @@ def test_empty_report_writes_all_formats(tmp_path: Path) -> None:
     assert json.loads(paths["json"].read_text())["results"] == []
     assert len(paths["jsonl"].read_text().splitlines()) == 1
     assert "Remediation" in paths["markdown"].read_text()
+
+
+def test_markdown_preserves_finding_context_without_active_markup(
+    tmp_path: Path, report: ScanReport
+) -> None:
+    finding = Finding(
+        "[click](javascript:alert(1)) <script>bad</script>",
+        Severity.INFO,
+        "A banner alone cannot establish the serving runtime.",
+    )
+    contextual = replace(report, results=(replace(report.results[0], findings=(finding,)),))
+
+    text = write_markdown(contextual, tmp_path).read_text()
+
+    assert finding.description in text
+    assert finding.title not in text
+    assert "\\[click\\]" in text
+    assert "&lt;script&gt;" in text
