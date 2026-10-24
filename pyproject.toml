@@ -1,0 +1,53 @@
+[project]
+name = "php2shell-audit"
+version = "0.1.0"
+description = "Authorization-gated CLI/TUI for detection-only defensive PHP exposure auditing."
+requires-python = ">=3.12"
+dependencies = [
+    "httpx~=0.28.1",
+    "typer~=0.20.0",
+    "rich~=14.0",
+    "textual~=6.0",
+]
+
+[project.scripts]
+php2shell-audit = "php2shell_audit.cli:app"
+
+[dependency-groups]
+dev = [
+    "pytest~=8.0",
+    "pytest-cov~=6.0",
+    "ruff~=0.14.0",
+    "mypy~=1.18.0",
+]
+
+[build-system]
+requires = ["setuptools~=80.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.uv]
+package = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+php2shell_audit = ["py.typed", "data/*.json"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "S", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "B010"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
