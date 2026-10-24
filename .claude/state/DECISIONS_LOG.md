@@ -5,6 +5,30 @@ short but complete enough for someone who was not in the session.
 
 ---
 
+**Decision:** Prove the no-PHP path with a minimal busybox fixture, not nginx.
+
+**Date:** 2026-10-24
+
+**Context:** The user asked for a non-PHP lab target so `NOT_PHP` is
+demonstrated, not just asserted by mocks.
+
+**Rationale:** busybox:1.36.1 serves static bytes with no package database and
+no TLS stack — there is almost nothing to be vulnerable. An nginx-based
+alternative was prototyped and rejected after Trivy reported 69 fixable
+HIGH/CRITICAL findings in its image; carrying that ignore list would weaken
+the gate's signal for a control whose only job is returning static bytes.
+Trivy image scanning is a verified no-op on busybox (documented in the gate
+script); its hardening is asserted by unit tests instead.
+
+**Security Implications:** Loopback-only binding preserved; nobody UID,
+read-only root, dropped capabilities, no-new-privileges, bounded resources —
+same posture as the PHP fixtures, verified live and by rendering tests.
+
+**Impact:** TASK-007 DONE. verify.sh asserts `NOT_PHP` with no version and no
+assessments on `:18082`.
+
+---
+
 **Decision:** MIT license plus labeled maintainer self-review; no independence claimed.
 
 **Date:** 2026-10-24

@@ -2,6 +2,13 @@
 
 Append-only. Newest entries at the top. One entry per completed or paused session.
 
+## 2026-10-24 - Non-PHP lab control fixture completed
+
+Added a hardened busybox static fixture proving the `NOT_PHP` path against a
+live target. Prototyped and rejected an nginx variant after Trivy reported 69
+fixable image findings; minimalism won on evidence. Live verify.sh passes all
+three fixtures; 653 tests green with all guardrails.
+
 ## 2026-10-24 - Portfolio publication readiness completed
 
 Added MIT LICENSE (holder from the user's git identity), recorded a dated

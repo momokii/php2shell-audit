@@ -36,6 +36,8 @@ Python 3.12/uv with Typer, Rich, Textual, httpx; final internal review approved.
   Ruff lint/format clean (30 files), strict mypy clean (14 files), `uv build` succeeds
 - [x] TASK-006: MIT LICENSE, maintainer self-review (not independent), advisory
   freshness confirmed current; docs and state updated
+- [x] TASK-007: non-PHP static control fixture serving clean 200s; live
+  verify.sh passes all three fixtures; 653 tests green with all guardrails
 
 ## In Progress
 
@@ -68,5 +70,5 @@ None. No open backlog items remain.
 
 ## Last Updated
 
-2026-10-24: TASK-006 publication readiness done; everything complete.
+2026-10-24: TASK-007 static control done; everything complete.
 Keep this file under ~80 lines and move older session summaries to `HISTORY.md`.

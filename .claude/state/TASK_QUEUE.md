@@ -93,6 +93,21 @@ user directs otherwise. Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 | Security Concerns | License choice is the user's; self-review must never be presented as an independent audit. No secrets involved. |
 | Notes | Completed 2026-10-24 in one pass per user authorization. Advisory snapshot current as verified; refresh process remains documented in README. |
 
+## TASK-007 - Non-PHP control fixture for the lab
+
+| Field | Value |
+|---|---|
+| Task ID | TASK-007 |
+| Name | Non-PHP control fixture for the lab |
+| Priority | Medium |
+| Status | DONE |
+| Complexity | S |
+| Depends On | TASK-003, explicit user request for a non-PHP lab target |
+| Scope | Hardened busybox static fixture on 127.0.0.1:18082; verify.sh asserts NOT_PHP with no version and no assessments; lab tests, CLI message, Trivy gate, and lab/main docs updated. No source behavior changes. |
+| Acceptance Criteria | Fixture serves clean 200 responses with no PHP indicators; live verify.sh passes all three fixtures; 653 tests pass; Ruff, strict mypy, and all guardrails green. |
+| Security Concerns | Loopback-only preserved; fixture ships no package database (Trivy no-op documented); hardening asserted by unit tests. Rejected nginx alternative would have added 69 fixable image CVEs. |
+| Notes | Completed 2026-10-24 with live verification before commit. |
+
 ## Task Template
 
 ```markdown
