@@ -1,0 +1,5 @@
+# Lab fixtures only: loopback-only detector targets, never shipped or deployed.
+# php:8.4.26-apache and php:8.4.27-apache carry this fixable Debian libbrotli
+# finding. Ignoring it keeps the gate fail-closed for any NEW fixable
+# HIGH/CRITICAL finding. Re-check on every base-image refresh. TASK-002.
+CVE-2026-111497

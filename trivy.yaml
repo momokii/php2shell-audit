@@ -1,0 +1,12 @@
+# Central Trivy policy, auto-loaded from the repo root by every local and CI
+# invocation (see scripts/checks/container-scan.sh and .github/workflows/ci.yml).
+# Image scans target the loopback-only lab fixtures. Compose-service hardening
+# itself is asserted by tests/test_lab_hardening.py: Trivy 0.76 config scanning
+# does not evaluate Compose files (verified as a no-op), so it is not wired
+# as a gate. Note: Trivy 0.76 has no config-file key for ignore-unfixed, so
+# scripts pass that flag explicitly on the command line (verified working).
+format: table
+exit-code: 1
+severity:
+  - HIGH
+  - CRITICAL
