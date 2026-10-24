@@ -5,6 +5,9 @@
 # equivalent (verified against the generated default config). .trivyignore
 # documents the accepted fixture-only finding, so any NEW fixable
 # HIGH/CRITICAL finding fails the build. Images are pinned by digest.
+# The busybox static fixture is intentionally not scanned: it ships no package
+# manager database, so there is nothing for Trivy to audit (verified no-op);
+# its minimalism is the control, and its hardening is asserted by unit tests.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"

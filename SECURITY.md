@@ -143,19 +143,20 @@ documentation change. No network or execution is needed to read this policy.
 
 ## Lab Safety
 
-The lab pairs PHP 8.4.26 with PHP 8.4.27 for detector validation only.
-Keep published ports bound to `127.0.0.1`; the default ports are 18080 and 18081.
+The lab pairs PHP 8.4.26 with PHP 8.4.27 for detector validation, plus a
+static no-PHP control fixture. Keep published ports bound to `127.0.0.1`; the
+default ports are 18080, 18081, and 18082.
 Never expose them through public interfaces, public tunnels, or public port
 forwarding. An authenticated SSH tunnel between explicitly loopback-bound
 listeners on an authorized workstation and lab host is the only documented
 remote-access path; see the lab guide. Do not enable wildcard SSH forwarding.
 
-The lab web root is read-only and contains an intentionally exposed `phpinfo.php`.
-Both services explicitly use UID/GID 33, drop all Linux capabilities, have
-read-only root filesystems with bounded writable temporary state, and enforce
-memory, CPU, and process limits. Non-root port 80 binding is enabled only inside
-the container network namespace, not on the host. These controls do not remove
-the risks of intentionally old PHP versions.
+The PHP web root is read-only and contains an intentionally exposed `phpinfo.php`.
+The PHP services explicitly use UID/GID 33 and the static fixture uses UID/GID
+65534; all drop Linux capabilities, have read-only root filesystems with bounded
+writable temporary state, and enforce memory, CPU, and process limits. Non-root
+port binding is enabled only inside the container network namespace, not on the
+host. These controls do not remove the risks of intentionally old PHP versions.
 Do not deploy those fixtures to a public service or put secrets in them.
 No exploit code belongs in the lab. Tear it down after use as described in
 [lab/README.md](lab/README.md).

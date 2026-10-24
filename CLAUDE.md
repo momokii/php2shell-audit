@@ -40,7 +40,7 @@ Run from the project root. Lab commands require Docker Compose and a source chec
 | Install dependencies | `uv sync` | Defined |
 | Run (development) | `uv run php2shell-audit --help`; `uv run php2shell-audit tui` | Implemented |
 | Run (production-like) | No production lab deployment | Not applicable to private test fixtures |
-| Test | `uv run pytest` | 608 passed; 2 pre-existing Typer warnings |
+| Test | `uv run pytest` | 653 passed; 2 pre-existing Typer warnings |
 | Lint | `uv run ruff check .` | Clean |
 | Format | `uv run ruff format .` (check: `uv run ruff format --check .`) | 30 files clean |
 | Type check | `uv run mypy src` | 14 source files clean |

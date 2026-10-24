@@ -146,7 +146,7 @@ The full provenance (snapshot date and SHA-256) ships inside every report, and
 the [research notes](docs/php2shell-research.md) document exactly what is — and
 is not — established for each branch.
 
-**Tested behavior, not just code.** 608 tests cover authorization gates, target
+**Tested behavior, not just code.** 653 tests cover authorization gates, target
 safety, fingerprinting, redaction, version verdicts (affected, fixed, hidden,
 unsupported, non-PHP, blocked), report formats, and offline end-to-end scans
 through mocked HTTP. Ruff, strict mypy, and the distribution build are clean.
@@ -383,12 +383,14 @@ tamper-proof evidence store.
 ## Checking with the Lab
 
 The lab is a private, loopback-only detector fixture: PHP 8.4.26 (affected) and
-PHP 8.4.27 (fixed) behind `http://127.0.0.1:18080` and `http://127.0.0.1:18081`.
-It validates version detection, not exploitation. Bindings stay on `127.0.0.1`;
+PHP 8.4.27 (fixed) behind `http://127.0.0.1:18080` and `http://127.0.0.1:18081`,
+plus a static no-PHP control on `http://127.0.0.1:18082` that must report
+`NOT_PHP`. It validates version detection and the no-PHP control path, not
+exploitation. Bindings stay on `127.0.0.1`;
 never publish or forward the vulnerable lab publicly. A source checkout is
 required: lab assets are not included in the wheel.
 
-Both fixtures run non-root with dropped capabilities, read-only root filesystems,
+All fixtures run non-root with dropped capabilities, read-only root filesystems,
 healthchecks, and memory/CPU/process limits. They are still private test targets,
 not production services.
 
@@ -409,12 +411,13 @@ uv sync
 ./lab/scripts/verify.sh
 ```
 
-Verification starts the lab, scans both actual URLs with
+Verification starts the lab, scans all three actual URLs with
 `--authorized --allow-private --deep --format json`, and checks the expected
 target URL, exact PHP version, and per-CVE verdicts in fresh per-run directories beneath
-`reports/qa/lab-vulnerable/` and `reports/qa/lab-fixed/`. For both
+`reports/qa/lab-vulnerable/`, `reports/qa/lab-fixed/`, and `reports/qa/lab-static/`. For both
 CVE-2026-109618 and CVE-2026-109619, expect `VULNERABLE_VERSION` on PHP 8.4.26
-and `NOT_VULNERABLE_VERSION` on PHP 8.4.27. CVE-2026-115560 remains
+and `NOT_VULNERABLE_VERSION` on PHP 8.4.27, and expect `NOT_PHP` with no PHP
+version and no CVE assessments on the static control. CVE-2026-115560 remains
 configuration-dependent/unknown. Verification automatically tears down the lab;
 use `KEEP_LAB=1 ./lab/scripts/verify.sh` to retain it for investigation, then
 run `down.sh` explicitly.
@@ -490,7 +493,7 @@ the lab assets, so use `docker compose -f lab/compose.yaml` from the checkout.
 | `src/php2shell_audit/data/php2shell.json` | Dated, project-maintained synthesis of upstream advisories and references. |
 | `src/php2shell_audit/report_markdown.py` | Markdown rendering of attached assessment data. |
 | `src/php2shell_audit/_advisory_models.py` | Typed per-CVE metadata parsed at the snapshot seam. |
-| `tests/` | Unit, integration, and interface checks; 608 tests, offline fixtures. |
+| `tests/` | Unit, integration, and interface checks; 653 tests, offline fixtures. |
 | `examples/generate_report.py` | Reproducible synthetic portfolio demo (mocked HTTP, no network). |
 | `scripts/checks/` | Local security gates (secret scan, audit, analysis, container scan). |
 | `.github/workflows/ci.yml` | CI enforcing tests, lint, types, build, and all four scans. |
