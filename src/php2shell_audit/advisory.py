@@ -3,12 +3,14 @@
 import json
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
+from hashlib import sha256
 from importlib.resources import files
 from pathlib import Path
 from types import MappingProxyType
 
-from php2shell_audit.models import Assessment, JsonValue, PhpInfo, Verdict
+from php2shell_audit._advisory_models import CveMetadata
+from php2shell_audit.models import Assessment, AssessmentBasis, JsonValue, PhpInfo, Verdict
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,6 +23,20 @@ class Advisory:
     cves: Mapping[str, Mapping[str, JsonValue]]
     mitigations: tuple[str, ...]
     references: tuple[str, ...]
+    snapshot_sha256: str = ""
+    metadata: Mapping[str, CveMetadata] = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "metadata",
+            MappingProxyType(
+                {
+                    cve_id: CveMetadata.parse(cve_id, details)
+                    for cve_id, details in self.cves.items()
+                }
+            ),
+        )
 
 
 def _mapping(value: JsonValue, field: str) -> dict[str, JsonValue]:
@@ -41,8 +57,9 @@ def load_advisories(path: Path | None = None) -> Advisory:
     File access errors propagate to the caller. No network access is performed.
     """
     source = path if path is not None else files("php2shell_audit").joinpath("data/php2shell.json")
+    payload = source.read_bytes()
     try:
-        data: JsonValue = json.loads(source.read_text(encoding="utf-8"))
+        data: JsonValue = json.loads(payload.decode("utf-8"))
     except (json.JSONDecodeError, UnicodeDecodeError) as error:
         raise ValueError(f"Malformed advisory JSON: {error}") from error
     snapshot = _mapping(data, "root")
@@ -67,6 +84,7 @@ def load_advisories(path: Path | None = None) -> Advisory:
         cves=MappingProxyType(cves),
         mitigations=_strings(snapshot.get("mitigations"), "mitigations"),
         references=_strings(snapshot.get("references"), "references"),
+        snapshot_sha256=sha256(payload).hexdigest(),
     )
 
 
@@ -89,59 +107,98 @@ def fixed_version_for(version: str, advisory: Advisory) -> str | None:
 
 
 def assess_php(version: str | None, advisory: Advisory) -> tuple[Assessment, ...]:
-    """Assess the two version-based CVEs without claiming exploitability."""
-    parsed = parse_version(version)
-    fixed = None
-    verdict = Verdict.POTENTIALLY_VULNERABLE_VERSION_UNKNOWN
-    if version is None:
-        reason = "No PHP version was observed; exposure cannot be ruled out."
-    elif parsed is None:
-        reason = f"Unrecognized PHP version string {version!r}; exposure cannot be ruled out."
-    elif parsed < (8, 2, 0):
-        verdict = Verdict.VULNERABLE_VERSION
-        reason = "EOL PHP branch; no upstream fixed release"
-    else:
-        fixed = fixed_version_for(version, advisory)
-        parsed_fixed = parse_version(fixed)
-        if parsed_fixed is not None:
-            verdict = (
-                Verdict.VULNERABLE_VERSION
-                if parsed < parsed_fixed
-                else Verdict.NOT_VULNERABLE_VERSION
-            )
-            relation = "below" if parsed < parsed_fixed else "at or above"
-            reason = f"Observed PHP {version} is {relation} fixed release {fixed}."
-        else:
-            releases = [
-                (parsed_release, release)
-                for release in advisory.fixed_versions.values()
-                if (parsed_release := parse_version(release)) is not None
-            ]
-            latest = max(releases, default=None)
-            if latest is not None and parsed[:2] > latest[0][:2] and parsed > latest[0]:
-                verdict = Verdict.NOT_VULNERABLE_VERSION
-                fixed = latest[1]
-                reason = "Version is newer than the latest fixed release in this advisory snapshot"
-            else:
-                fixed = None
-                reason = f"No usable fixed release for PHP {version} in this advisory snapshot."
+    """Compare only documented stable branch ranges, without proving exploitability."""
     return tuple(
-        Assessment(cve_id=cve_id, verdict=verdict, reason=reason, fixed_version=fixed)
+        _assess_version(version, advisory, cve_id)
         for cve_id in ("CVE-2026-109618", "CVE-2026-109619")
+    )
+
+
+def _assess_version(version: str | None, advisory: Advisory, cve_id: str) -> Assessment:
+    metadata = advisory.metadata.get(
+        cve_id, CveMetadata(Assessment(cve_id, Verdict.POTENTIALLY_VULNERABLE_VERSION_UNKNOWN, ""))
+    )
+    assessment = replace(metadata.assessment, observed_version=version)
+    parsed = parse_version(version)
+    if version is None:
+        return replace(
+            assessment,
+            reason="No PHP version was observed; exposure cannot be ruled out.",
+        )
+    if parsed is None or re.fullmatch(r"(?:PHP )?[0-9]+\.[0-9]+\.[0-9]+", version) is None:
+        return replace(
+            assessment,
+            reason=(
+                f"Unsupported or non-stable PHP version {version!r}; "
+                "verify the serving runtime locally."
+            ),
+        )
+    if parsed < (8, 2, 0):
+        return replace(
+            assessment,
+            reason=(
+                "EOL PHP branch outside documented affected ranges; "
+                "no upstream fixed release. Verify vendor backports and migrate "
+                "to a supported branch; EOL alone is not a CVE match."
+            ),
+        )
+    branch = f"{parsed[0]}.{parsed[1]}"
+    release = next((entry for entry in metadata.affected if entry.branch == branch), None)
+    if release is None or branch not in {"8.2", "8.3", "8.4", "8.5"}:
+        return replace(
+            assessment,
+            reason=f"No documented affected range for PHP {branch} in snapshot.",
+        )
+    assessment = replace(assessment, affected_range=release.range)
+    bounds = re.fullmatch(r">=([0-9]+\.[0-9]+\.[0-9]+) <([0-9]+\.[0-9]+\.[0-9]+)", release.range)
+    fixed = release.fixed
+    parsed_fixed = parse_version(fixed)
+    lower = parse_version(bounds[1]) if bounds else None
+    if (
+        bounds is None
+        or lower is None
+        or parsed_fixed is None
+        or fixed != bounds[2]
+        or advisory.fixed_versions.get(branch) != fixed
+        or lower[:2] != parsed[:2]
+        or parsed_fixed[:2] != parsed[:2]
+        or lower >= parsed_fixed
+    ):
+        return replace(
+            assessment,
+            reason=f"No usable documented fixed/range rule for PHP {branch}.",
+        )
+    matched = lower <= parsed < parsed_fixed
+    if parsed < lower:
+        return replace(
+            assessment,
+            reason="Observed version precedes the documented affected range.",
+        )
+    return replace(
+        assessment,
+        fixed_version=fixed,
+        affected_range_match=matched,
+        verdict=Verdict.VULNERABLE_VERSION if matched else Verdict.NOT_VULNERABLE_VERSION,
+        reason=f"Observed PHP {version} is {'within' if matched else 'outside'} affected range "
+        f"{release.range}; fixed release {fixed}. Version evidence is not exploit proof.",
     )
 
 
 def assess_configuration(advisory: Advisory) -> Assessment:
     """Keep configuration-dependent exposure unconfirmed regardless of version."""
-    return Assessment(
-        cve_id="CVE-2026-115560",
-        verdict=Verdict.POTENTIALLY_VULNERABLE_VERSION_UNKNOWN,
+    cve_id = "CVE-2026-115560"
+    metadata = advisory.metadata.get(
+        cve_id, CveMetadata(Assessment(cve_id, Verdict.POTENTIALLY_VULNERABLE_VERSION_UNKNOWN, ""))
+    )
+    return replace(
+        metadata.assessment,
         reason=(
             "Configuration-dependent issue; remote version fingerprinting cannot confirm "
             "the required session.serialize_handler and session.upload_progress conditions."
         ),
         fixed_version=None,
         configuration_dependent=True,
+        basis=AssessmentBasis.UNVERIFIED_CONFIGURATION,
     )
 
 

@@ -9,10 +9,13 @@ from enum import StrEnum
 
 __all__ = [
     "Assessment",
+    "AssessmentBasis",
+    "AdvisoryProvenance",
     "Evidence",
     "Finding",
     "JsonValue",
     "PhpInfo",
+    "RequestContext",
     "Sapi",
     "ScanConfig",
     "ScanReport",
@@ -72,6 +75,47 @@ class Severity(StrEnum):
     INFO = "info"
 
 
+class AssessmentBasis(StrEnum):
+    OBSERVED_VERSION = "observed_version"
+    UNVERIFIED_CONFIGURATION = "unverified_configuration"
+
+
+@dataclass(frozen=True, slots=True)
+class RequestContext:
+    method: str
+    requested_url: str
+    final_url: str
+    status_code: int
+    body_prefix_bytes: int
+    body_truncated: bool
+    observed_at: str
+
+    def to_dict(self) -> dict[str, JsonValue]:
+        return {
+            "method": self.method,
+            "requested_url": self.requested_url,
+            "final_url": self.final_url,
+            "status_code": self.status_code,
+            "body_prefix_bytes": self.body_prefix_bytes,
+            "body_truncated": self.body_truncated,
+            "observed_at": self.observed_at,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class AdvisoryProvenance:
+    schema_version: int
+    snapshot_date: str
+    snapshot_sha256: str
+
+    def to_dict(self) -> dict[str, JsonValue]:
+        return {
+            "schema_version": self.schema_version,
+            "snapshot_date": self.snapshot_date,
+            "snapshot_sha256": self.snapshot_sha256,
+        }
+
+
 @dataclass(frozen=True, slots=True)
 class Target:
     """A parsed target URL, without authorization implied by construction."""
@@ -88,9 +132,13 @@ class Evidence:
 
     source: str
     value: str
+    request: RequestContext | None = None
 
     def to_dict(self) -> dict[str, JsonValue]:
-        return {"source": self.source, "value": self.value}
+        result: dict[str, JsonValue] = {"source": self.source, "value": self.value}
+        if self.request is not None:
+            result["request"] = self.request.to_dict()
+        return result
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,6 +168,18 @@ class Assessment:
     reason: str
     fixed_version: str | None = None
     configuration_dependent: bool = False
+    basis: AssessmentBasis = AssessmentBasis.OBSERVED_VERSION
+    observed_version: str | None = None
+    affected_range: str | None = None
+    affected_range_match: bool | None = None
+    evidence: tuple[Evidence, ...] = ()
+    remediation: tuple[str, ...] = ()
+    verification: tuple[str, ...] = ()
+    references: tuple[str, ...] = ()
+    title: str = ""
+    severity: str | None = None
+    rating_notes: str | None = None
+    conditions: str | None = None
 
     def to_dict(self) -> dict[str, JsonValue]:
         return {
@@ -128,6 +188,18 @@ class Assessment:
             "reason": self.reason,
             "fixed_version": self.fixed_version,
             "configuration_dependent": self.configuration_dependent,
+            "basis": self.basis.value,
+            "observed_version": self.observed_version,
+            "affected_range": self.affected_range,
+            "affected_range_match": self.affected_range_match,
+            "evidence": [item.to_dict() for item in self.evidence],
+            "remediation": list(self.remediation),
+            "verification": list(self.verification),
+            "references": list(self.references),
+            "title": self.title,
+            "severity": self.severity,
+            "rating_notes": self.rating_notes,
+            "conditions": self.conditions,
         }
 
 
@@ -217,11 +289,15 @@ class ScanReport:
     started_at: str | None = None
     finished_at: str | None = None
     schema_version: int = 1
+    advisory: AdvisoryProvenance | None = None
 
     def to_dict(self) -> dict[str, JsonValue]:
-        return {
+        result: dict[str, JsonValue] = {
             "schema_version": self.schema_version,
             "started_at": self.started_at,
             "finished_at": self.finished_at,
             "results": [item.to_dict() for item in self.results],
         }
+        if self.advisory is not None:
+            result["advisory"] = self.advisory.to_dict()
+        return result

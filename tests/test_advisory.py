@@ -161,11 +161,14 @@ def test_fixed_version_for(advisory: Advisory, version: str, expected: str | Non
         ("8.2.35", Verdict.NOT_VULNERABLE_VERSION, "8.2.35"),
         ("8.3.36", Verdict.NOT_VULNERABLE_VERSION, "8.3.36"),
         ("8.5.12", Verdict.NOT_VULNERABLE_VERSION, "8.5.12"),
-        ("7.4.33", Verdict.VULNERABLE_VERSION, None),
-        ("8.0.30", Verdict.VULNERABLE_VERSION, None),
-        ("8.1.31", Verdict.VULNERABLE_VERSION, None),
-        ("8.6.0", Verdict.NOT_VULNERABLE_VERSION, "8.5.12"),
-        ("9.0.0", Verdict.NOT_VULNERABLE_VERSION, "8.5.12"),
+        # EOL and newer branches are not documented affected/fixed ranges.
+        ("7.4.33", Verdict.POTENTIALLY_VULNERABLE_VERSION_UNKNOWN, None),
+        ("8.0.30", Verdict.POTENTIALLY_VULNERABLE_VERSION_UNKNOWN, None),
+        ("8.1.31", Verdict.POTENTIALLY_VULNERABLE_VERSION_UNKNOWN, None),
+        ("8.6.0", Verdict.POTENTIALLY_VULNERABLE_VERSION_UNKNOWN, None),
+        ("9.0.0", Verdict.POTENTIALLY_VULNERABLE_VERSION_UNKNOWN, None),
+        ("8.4.27RC1", Verdict.POTENTIALLY_VULNERABLE_VERSION_UNKNOWN, None),
+        ("8.4.27garbage", Verdict.POTENTIALLY_VULNERABLE_VERSION_UNKNOWN, None),
         (None, Verdict.POTENTIALLY_VULNERABLE_VERSION_UNKNOWN, None),
         ("8.4.x", Verdict.POTENTIALLY_VULNERABLE_VERSION_UNKNOWN, None),
     ],
@@ -198,6 +201,9 @@ def test_configuration_assessment(advisory: Advisory) -> None:
 
     assert assessment.cve_id == "CVE-2026-115560"
     assert assessment.configuration_dependent is True
+    assert assessment.basis.value == "unverified_configuration"
+    assert assessment.evidence == ()
+    assert assessment.affected_range_match is None
     assert assessment.fixed_version is None
     assert assessment.verdict == Verdict.POTENTIALLY_VULNERABLE_VERSION_UNKNOWN
     assert assessment.reason == (
@@ -234,3 +240,53 @@ def test_overall_verdict(detected: bool, verdicts: tuple[Verdict, ...], expected
     assessments = tuple(Assessment(cve_id="test", verdict=item, reason="test") for item in verdicts)
 
     assert overall_verdict(php, assessments) == expected
+
+
+@pytest.mark.parametrize("version,matched", [("8.4.26", True), ("8.4.27", False)])
+def test_assessment_uses_documented_range(advisory: Advisory, version: str, matched: bool) -> None:
+    assessments = assess_php(version, advisory)
+
+    assert all(item.observed_version == version for item in assessments)
+    assert all(item.affected_range == ">=8.4.0 <8.4.27" for item in assessments)
+    assert all(item.affected_range_match is matched for item in assessments)
+    assert assessments[0].references != assessments[1].references
+    assert all(item.remediation and item.verification for item in assessments)
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("title", 1),
+        ("severity", []),
+        ("rating_notes", None),
+        ("condition", False),
+        ("mitigations", [1]),
+        ("verification", "check"),
+        ("references", [None]),
+        ("affected", [{"branch": "8.4", "range": 1, "fixed": "8.4.99"}]),
+    ],
+)
+def test_rejects_malformed_cve_metadata(
+    tmp_path: Path, snapshot: dict[str, JsonValue], field: str, value: JsonValue
+) -> None:
+    snapshot["cves"] = {"CVE-2026-109618": {field: value}}
+    path = tmp_path / "advisory.json"
+    path.write_text(json.dumps(snapshot), encoding="utf-8")
+
+    with pytest.raises(ValueError, match=field):
+        load_advisories(path)
+
+
+def test_sparse_custom_metadata_does_not_invent_sources(
+    tmp_path: Path, snapshot: dict[str, JsonValue]
+) -> None:
+    path = tmp_path / "advisory.json"
+    path.write_text(json.dumps(snapshot), encoding="utf-8")
+    custom = load_advisories(path)
+
+    first, second = assess_php("8.4.26", custom)
+
+    assert first.title == "Local test snapshot" and second.title == ""
+    assert first.references == second.references == ()
+    assert first.remediation == second.remediation == ()
+    assert first.verdict == second.verdict == Verdict.POTENTIALLY_VULNERABLE_VERSION_UNKNOWN

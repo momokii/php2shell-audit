@@ -6,10 +6,12 @@ from dataclasses import FrozenInstanceError
 import pytest
 
 from php2shell_audit.models import (
+    AdvisoryProvenance,
     Assessment,
     Evidence,
     Finding,
     PhpInfo,
+    RequestContext,
     Sapi,
     ScanConfig,
     ScanReport,
@@ -159,3 +161,47 @@ def test_unknown_metadata_survives_when_report_is_serialized() -> None:
     assert decoded["results"][0]["php"]["version"] is None
     assert decoded["results"][0]["php"]["sapi"] == "unknown"
     assert decoded["results"][0]["verdict"] == "POTENTIALLY_VULNERABLE_VERSION_UNKNOWN"
+
+
+def test_optional_provenance_preserves_legacy_report_shape() -> None:
+    report = ScanReport()
+
+    assert "advisory" not in report.to_dict()
+    assert Evidence("header:x-powered-by", "PHP/8.4.26").to_dict() == {
+        "source": "header:x-powered-by",
+        "value": "PHP/8.4.26",
+    }
+
+
+def test_nested_assessment_context_serializes_without_body_retention() -> None:
+    request = RequestContext(
+        "GET",
+        "https://example.test/",
+        "https://example.test/php",
+        200,
+        16,
+        True,
+        "2026-10-24T12:00:00+00:00",
+    )
+    evidence = Evidence("header:x-powered-by", "PHP/8.4.26", request)
+    assessment = Assessment(
+        "CVE-test",
+        Verdict.VULNERABLE_VERSION,
+        "range match",
+        evidence=(evidence,),
+        observed_version="8.4.26",
+        affected_range=">=8.4.0 <8.4.27",
+        affected_range_match=True,
+    )
+    report = ScanReport(advisory=AdvisoryProvenance(1, "2026-10-24", "a" * 64))
+
+    decoded = json.loads(json.dumps(assessment.to_dict()))
+
+    assert decoded["evidence"][0]["request"] == request.to_dict()
+    assert decoded["basis"] == "observed_version"
+    assert decoded["affected_range_match"] is True
+    assert report.to_dict()["advisory"] == {
+        "schema_version": 1,
+        "snapshot_date": "2026-10-24",
+        "snapshot_sha256": "a" * 64,
+    }

@@ -22,6 +22,11 @@
         "At administrator level, consider memory_limit=-1 with container or cgroup availability limits. Allocation failures remain a risk; do not substitute RLIMIT_AS or RLIMIT_DATA.",
         "Set post_max_size to 8M without uploads or 32M when uploads are required; keep upload_max_filesize smaller. Apply decoded request-size and input-count limits at the proxy or web server."
       ],
+      "verification": [
+        "Confirm the PHP version of the web-serving runtime locally, not only the CLI or remote banner.",
+        "Check vendor security notices and installed package revisions for backported fixes.",
+        "Restart every serving worker after patching, then rescan the authorized endpoint; a banner alone cannot verify a backport."
+      ],
       "references": [
         "https://www.php.net/archive/2026.php#2026-10-21-5",
         "https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w",
@@ -48,6 +53,11 @@
         "On PHP 8.5 set fatal_error_backtraces=0 and restart workers; this only mitigates the confirmed fatal-backtrace path.",
         "Remove invalid or deprecated per-request settings that emit early diagnostics; remediate reachable fatal errors and execution timeouts. Hiding diagnostics does not mitigate the issue."
       ],
+      "verification": [
+        "Confirm the PHP version of the web-serving runtime locally, not only the CLI or remote banner.",
+        "Check vendor security notices and installed package revisions for backported fixes.",
+        "Restart every serving worker after patching, then rescan the authorized endpoint; a banner alone cannot verify a backport."
+      ],
       "references": [
         "https://www.php.net/archive/2026.php#2026-10-21-5",
         "https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp",
@@ -71,6 +81,12 @@
       "mitigations": [
         "session.upload_progress.enabled=0",
         "Apply the setting before request parsing and restart every worker until the next regular bugfix release. No out-of-band patch is planned."
+      ],
+      "verification": [
+        "Inspect effective session.upload_progress.enabled and session.serialize_handler in the web-serving runtime locally.",
+        "Review application code for runtime session.serialize_handler switches before session_start(); remote version evidence does not establish this behavior.",
+        "Verify session.upload_progress.enabled=0 is applied before request parsing and restart every serving worker.",
+        "Check vendor updates and rescan the authorized endpoint for observations only; remote rescanning cannot confirm the local configuration condition."
       ],
       "references": [
         "https://www.php.net/archive/2026.php#2026-10-23-1",

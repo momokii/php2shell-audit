@@ -3,11 +3,13 @@
 import json
 from collections.abc import Iterator
 from datetime import datetime, timedelta
+from hashlib import sha256
 from pathlib import Path
 
 import httpx
 import pytest
 
+from php2shell_audit.advisory import load_advisories
 from php2shell_audit.models import JsonValue, ScanConfig, ScanReport, Severity, Target, Verdict
 from php2shell_audit.recon import BudgetExceeded
 from php2shell_audit.safety import AuthorizationError, SafetyError
@@ -409,3 +411,62 @@ def test_present_baseline_headers_do_not_create_missing_header_finding() -> None
         result = scanner.scan(Target("https://example.test"))
 
     assert result.findings == ()
+
+
+def test_redirect_evidence_uses_sanitized_actual_request_context() -> None:
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/":
+            return httpx.Response(302, headers={"Location": "/php?token=redirect-secret"})
+        return httpx.Response(200, headers={"X-Powered-By": "PHP/8.4.26"}, content=b"abcdefgh")
+
+    with Scanner(
+        ScanConfig(authorized=True, max_response_bytes=4, rate_limit=0),
+        transport=httpx.MockTransport(handle),
+        resolver=lambda host: ("93.184.216.34",),
+    ) as scanner:
+        result = scanner.scan(Target("https://example.test/path?token=target-secret"))
+
+    evidence = result.php.evidence
+    context = evidence[0].request
+    assert context is not None
+    assert context.method == "GET" and context.requested_url == "https://example.test/"
+    assert context.final_url == "https://example.test/php"
+    assert context.status_code == 200 and context.body_prefix_bytes == 4
+    assert context.body_truncated is True
+    assert datetime.fromisoformat(context.observed_at).utcoffset() == timedelta(0)
+    assert result.assessments[0].evidence is evidence
+    assert result.assessments[1].evidence is evidence
+    assert result.assessments[2].evidence == ()
+    assert result.requests_made == 2
+    serialized = json.dumps(result.to_dict())
+    assert all(value not in serialized for value in ("target-secret", "redirect-secret", "abcd"))
+
+
+def test_scan_provenance_comes_from_selected_snapshot(tmp_path: Path) -> None:
+    payload = json.dumps(
+        {
+            "schema_version": 1,
+            "generated_at": "2026-01-02",
+            "fixed_versions": {},
+            "cves": {},
+            "mitigations": [],
+            "references": [],
+        }
+    ).encode()
+    path = tmp_path / "custom.json"
+    path.write_bytes(payload)
+    custom = load_advisories(path)
+    with Scanner(
+        ScanConfig(authorized=True),
+        advisory=custom,
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, headers={"X-Powered-By": "PHP/8.4.26"})
+        ),
+        resolver=lambda host: ("93.184.216.34",),
+    ) as scanner:
+        report = scanner.scan_many([Target("https://example.test")])
+
+    assert report.advisory is not None
+    assert report.advisory.snapshot_sha256 == custom.snapshot_sha256 == sha256(payload).hexdigest()
+    assert report.advisory.snapshot_date == "2026-01-02"
+    assert report.results[0].assessments[0].references == ()

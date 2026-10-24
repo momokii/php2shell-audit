@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Final, Protocol
 
@@ -17,9 +18,11 @@ from php2shell_audit.advisory import (
 )
 from php2shell_audit.fingerprint import detect_php, detect_waf, header_values
 from php2shell_audit.models import (
+    AdvisoryProvenance,
     Evidence,
     Finding,
     JsonValue,
+    RequestContext,
     ScanConfig,
     ScanReport,
     Severity,
@@ -168,8 +171,25 @@ class Scanner:
     def _assess(self, safe_target: Target, response: ReconResponse, target: Target) -> TargetResult:
         view = _FingerprintView(response)
         php = detect_php(view)
+        context = RequestContext(
+            method="GET",
+            requested_url=redact_url(response.requested_url),
+            final_url=redact_url(response.final_url),
+            status_code=response.status_code,
+            body_prefix_bytes=len(response.body),
+            body_truncated=response.truncated,
+            observed_at=datetime.now(UTC).isoformat(),
+        )
+        php = replace(php, evidence=tuple(replace(item, request=context) for item in php.evidence))
         waf = detect_waf(view)
-        versions = assess_php(php.version, self._advisory) if php.detected else ()
+        versions = (
+            tuple(
+                replace(item, evidence=php.evidence)
+                for item in assess_php(php.version, self._advisory)
+            )
+            if php.detected
+            else ()
+        )
         assessments = (*versions, assess_configuration(self._advisory)) if php.detected else ()
         verdict = overall_verdict(php, versions)
         findings: list[Finding] = []
@@ -305,7 +325,18 @@ class Scanner:
             require_authorization(self._config)
             started_at = datetime.now(UTC).isoformat()
             results = tuple(self.scan(target) for target in targets)
-            return ScanReport(results, started_at, datetime.now(UTC).isoformat())
+            return ScanReport(
+                results,
+                started_at,
+                datetime.now(UTC).isoformat(),
+                advisory=(
+                    AdvisoryProvenance(
+                        self._advisory.schema_version,
+                        self._advisory.generated_at,
+                        self._advisory.snapshot_sha256,
+                    )
+                ),
+            )
         finally:
             self.close()
 
