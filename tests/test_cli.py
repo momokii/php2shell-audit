@@ -368,6 +368,7 @@ def test_lab_uses_fixed_compose_arguments(
         assert "./lab/scripts/up.sh" in result.stdout
         assert "http://127.0.0.1:18080" in result.stdout
         assert "http://127.0.0.1:18081" in result.stdout
+        assert "http://127.0.0.1:18082" in result.stdout
         assert "down -v" in result.stdout
         assert "lab/.env" in result.stdout
         assert "php2shell-audit lab down" in result.stdout

@@ -37,11 +37,10 @@ def rendered_compose() -> str:
     return result.stdout
 
 
-@pytest.mark.parametrize("service_name", ["vulnerable", "fixed"])
+@pytest.mark.parametrize("service_name", ["vulnerable", "fixed", "static"])
 @pytest.mark.parametrize(
     "requirement",
     [
-        ("user", "33:33"),
         ("cap_drop", ["ALL"]),
         ("cap_add", []),
         ("read_only", True),
@@ -62,7 +61,19 @@ def test_service_hardening_when_compose_is_rendered(
     assert service.get(setting, [] if setting == "cap_add" else None) == expected
 
 
-@pytest.mark.parametrize("service_name", ["vulnerable", "fixed"])
+@pytest.mark.parametrize(
+    ("service_name", "user"),
+    [("vulnerable", "33:33"), ("fixed", "33:33"), ("static", "65534:65534")],
+)
+def test_service_user_when_compose_is_rendered(
+    rendered_compose: str, service_name: str, user: str
+) -> None:
+    service = json.loads(rendered_compose)["services"][service_name]
+
+    assert service["user"] == user
+
+
+@pytest.mark.parametrize("service_name", ["vulnerable", "fixed", "static"])
 def test_memory_is_bounded_when_compose_is_rendered(
     rendered_compose: str, service_name: str
 ) -> None:
@@ -71,6 +82,16 @@ def test_memory_is_bounded_when_compose_is_rendered(
     service = json.loads(rendered_compose)["services"][service_name]
 
     assert int(service["mem_limit"]) == expected_bytes
+
+
+def test_static_writable_state_when_root_is_read_only(rendered_compose: str) -> None:
+    service = json.loads(rendered_compose)["services"]["static"]
+    mounts = {
+        target: set(options.split(","))
+        for target, options in (mount.split(":", 1) for mount in service["tmpfs"])
+    }
+
+    assert mounts == {"/tmp": {"mode=1777", "size=64m"}}  # noqa: S108 - Container mount, not host temporary I/O.
 
 
 @pytest.mark.parametrize("service_name", ["vulnerable", "fixed"])

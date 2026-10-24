@@ -21,13 +21,18 @@ LAB_ROOT: Final = PROJECT_ROOT / "lab"
         "name: php2shell-lab",
         "vulnerable:",
         "fixed:",
+        "static:",
         "php:8.4.26-apache",
         "php:8.4.27-apache",
+        "busybox:1.36.1",
         '"127.0.0.1:${LAB_VULNERABLE_PORT:-18080}:80"',
         '"127.0.0.1:${LAB_FIXED_PORT:-18081}:80"',
+        '"127.0.0.1:${LAB_STATIC_PORT:-18082}:80"',
         "./www:/var/www/html:ro",
         "./healthcheck.php:/usr/local/bin/lab-healthcheck.php:ro",
+        "./www-static:/www:ro",
         'test: ["CMD", "php", "/usr/local/bin/lab-healthcheck.php"]',
+        'test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]',
         "interval: 2s",
         "timeout: 3s",
         "retries: 15",
@@ -105,8 +110,19 @@ def test_env_example_overrides_only_host_ports() -> None:
     content = (LAB_ROOT / ".env.example").read_text(encoding="utf-8")
 
     settings = [line for line in content.splitlines() if line and not line.startswith("#")]
-    assert settings == ["LAB_VULNERABLE_PORT=18080", "LAB_FIXED_PORT=18081"]
+    assert settings == [
+        "LAB_VULNERABLE_PORT=18080",
+        "LAB_FIXED_PORT=18081",
+        "LAB_STATIC_PORT=18082",
+    ]
     assert "LAB_BIND_ADDRESS" not in content
+
+
+def test_static_fixture_contains_no_php_indicators() -> None:
+    content = (LAB_ROOT / "www-static" / "index.html").read_text(encoding="utf-8")
+
+    assert "php" not in content.casefold()
+    assert "generator" not in content.casefold()
 
 
 def test_lifecycle_scripts_are_executable_and_have_valid_bash_syntax() -> None:
@@ -131,23 +147,26 @@ def test_lifecycle_scripts_are_executable_and_have_valid_bash_syntax() -> None:
         assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_lifecycle_scripts_wait_cleanup_and_verify_both_verdicts() -> None:
+def test_lifecycle_scripts_wait_cleanup_and_verify_all_verdicts() -> None:
     up = (LAB_ROOT / "scripts" / "up.sh").read_text(encoding="utf-8")
     down = (LAB_ROOT / "scripts" / "down.sh").read_text(encoding="utf-8")
     verify = (LAB_ROOT / "scripts" / "verify.sh").read_text(encoding="utf-8")
 
     assert "--wait --wait-timeout 60" in up
+    assert "Static: http://127.0.0.1:" in up
     assert "down -v --remove-orphans" in down
     assert "VULNERABLE_VERSION" in verify
     assert "NOT_VULNERABLE_VERSION" in verify
+    assert "NOT_PHP" in verify
     assert "KEEP_LAB" in verify
     assert "trap " in verify
     assert "reports/qa/lab-vulnerable" in verify
     assert "reports/qa/lab-fixed" in verify
+    assert "reports/qa/lab-static" in verify
 
 
 @pytest.mark.parametrize("optimized", [False, True])
-@pytest.mark.parametrize("evidence_port", [28080, 28081])
+@pytest.mark.parametrize("evidence_port", [28080, 28081, 28082])
 @pytest.mark.parametrize(
     "scenario",
     [
@@ -183,6 +202,7 @@ def test_verify_when_using_offline_commands(
         'printf "%s\\n" "$*" >> "$DOCKER_CALLS"\n'
         'case "$4" in\n'
         'port) if [[ "$5" == vulnerable ]]; then echo 127.0.0.1:28080; '
+        'elif [[ "$5" == static ]]; then echo 127.0.0.1:28082; '
         "else echo 127.0.0.1:28081; fi ;;\n"
         'down) exit "$CLEANUP_STATUS" ;;\nesac\n',
         encoding="utf-8",
@@ -205,19 +225,27 @@ mode = os.environ["SCAN_MODE"]
 if mode == "stale":
     raise SystemExit(0)
 url = sys.argv[4]
-verdict = "VULNERABLE_VERSION" if url.endswith(":28080") else "NOT_VULNERABLE_VERSION"
+is_static = url.endswith(":28082")
+if is_static:
+    verdict = "NOT_PHP"
+else:
+    verdict = "VULNERABLE_VERSION" if url.endswith(":28080") else "NOT_VULNERABLE_VERSION"
 if mode == "wrong-verdict":
     verdict = "UNREACHABLE"
 if mode == "wrong-target":
     url = "http://127.0.0.1:1"
-php = {"detected": True, "version": "8.4.26" if url.endswith(":28080") else "8.4.27"}
-assessments = [
-    {"cve_id": cve_id, "verdict": verdict}
-    for cve_id in ("CVE-2026-109618", "CVE-2026-109619")
-]
-assessments.append({
-    "cve_id": "CVE-2026-115560", "verdict": "POTENTIALLY_VULNERABLE_VERSION_UNKNOWN"
-})
+if is_static:
+    php = {"detected": False, "version": None}
+    assessments = []
+else:
+    php = {"detected": True, "version": "8.4.26" if url.endswith(":28080") else "8.4.27"}
+    assessments = [
+        {"cve_id": cve_id, "verdict": verdict}
+        for cve_id in ("CVE-2026-109618", "CVE-2026-109619")
+    ]
+    assessments.append({
+        "cve_id": "CVE-2026-115560", "verdict": "POTENTIALLY_VULNERABLE_VERSION_UNKNOWN"
+    })
 result = {"target": {"url": url}, "verdict": verdict, "php": php, "assessments": assessments}
 if url.endswith(":" + os.environ["EVIDENCE_PORT"]):
     if mode == "missing-php":
@@ -225,15 +253,21 @@ if url.endswith(":" + os.environ["EVIDENCE_PORT"]):
     if mode == "wrong-version":
         php["version"] = "8.4.28"
     if mode == "php-not-detected":
-        php["detected"] = False
+        php["detected"] = False if not is_static else True
     if mode == "missing-assessments":
         del result["assessments"]
     if mode == "missing-assessment":
-        assessments.pop(1)
+        if len(assessments) > 1:
+            assessments.pop(1)
+        else:
+            assessments.append({"cve_id": "BOGUS", "verdict": "NOT_PHP"})
     if mode == "wrong-assessment":
-        assessments[1]["verdict"] = "POTENTIALLY_VULNERABLE_VERSION_UNKNOWN"
+        if len(assessments) > 1:
+            assessments[1]["verdict"] = "POTENTIALLY_VULNERABLE_VERSION_UNKNOWN"
+        else:
+            assessments.append({"cve_id": "BOGUS", "verdict": "NOT_PHP"})
     if mode == "duplicate-assessment":
-        assessments.append(assessments[0].copy())
+        assessments.append((assessments[0] if assessments else {"cve_id": "BOGUS"}).copy())
 payload = json.dumps({"results": [result]})
 (directory / "new.json").write_text(payload, encoding="utf-8")
 if mode == "duplicate":
@@ -246,6 +280,7 @@ if mode == "duplicate":
     for fixture, port, verdict in (
         ("vulnerable", 28080, "VULNERABLE_VERSION"),
         ("fixed", 28081, "NOT_VULNERABLE_VERSION"),
+        ("static", 28082, "NOT_PHP"),
     ):
         directory = tmp_path / "reports" / "qa" / f"lab-{fixture}"
         directory.mkdir(parents=True)
@@ -288,12 +323,13 @@ if mode == "duplicate":
         assert "FAIL:" in result.stderr
         assert "Traceback" not in result.stderr
     else:
-        assert result.stdout.count("PASS:") == 2
+        assert result.stdout.count("PASS:") == 3
         assert "http://127.0.0.1:28080" in result.stdout
         assert "http://127.0.0.1:28081" in result.stdout
+        assert "http://127.0.0.1:28082" in result.stdout
     if "cleanup-failure" in scenario:
         assert "cleanup exited 17" in result.stderr
-    for fixture in ("vulnerable", "fixed"):
+    for fixture in ("vulnerable", "fixed", "static"):
         directory = tmp_path / "reports" / "qa" / f"lab-{fixture}"
         assert (directory / "old.json").is_file()
         assert len(list(directory.glob("run.*"))) == 1
@@ -332,7 +368,7 @@ def test_compose_config_when_docker_compose_is_available(override: bool) -> None
 
     assert result.returncode == 0, result.stdout + result.stderr
     services = json.loads(result.stdout)["services"]
-    assert set(services) == {"vulnerable", "fixed"}
+    assert set(services) == {"vulnerable", "fixed", "static"}
     for name, image, port in (
         ("vulnerable", "php:8.4.26-apache", 28080 if override else 18080),
         ("fixed", "php:8.4.27-apache", 28081 if override else 18081),
@@ -360,3 +396,23 @@ def test_compose_config_when_docker_compose_is_available(override: bool) -> None
             assert mounts[target]["type"] == "bind"
             assert mounts[target]["source"] == str(source)
             assert mounts[target]["read_only"] is True
+    static = services["static"]
+    assert static["image"] == "busybox:1.36.1"
+    assert static["user"] == "65534:65534"
+    assert len(static["ports"]) == 1
+    assert static["ports"][0]["host_ip"] == "127.0.0.1"
+    assert int(static["ports"][0]["published"]) == 18082
+    assert static["ports"][0]["target"] == 80
+    assert static["restart"] == "no"
+    assert static["security_opt"] == ["no-new-privileges:true"]
+    assert static["healthcheck"] == {
+        "test": ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"],
+        "interval": "2s",
+        "timeout": "3s",
+        "retries": 15,
+        "start_period": "5s",
+    }
+    static_mounts = {mount["target"]: mount for mount in static["volumes"]}
+    assert static_mounts["/www"]["type"] == "bind"
+    assert static_mounts["/www"]["source"] == str(LAB_ROOT / "www-static")
+    assert static_mounts["/www"]["read_only"] is True
