@@ -276,6 +276,66 @@ documented range. It does not establish target-specific exploitability or rule
 out vendor backports. Unknown conditions explain what remains to be verified;
 the tool does not manufacture evidence to force a decisive result.
 
+### What a report looks like
+
+Every full report follows the same structure:
+
+1. Header: scan start/finish times plus advisory provenance (snapshot date and
+   SHA-256 identifying the exact advisory data used).
+2. Summary table: one row per target with verdict, PHP, SAPI, and WAF.
+3. Per target: outcome sentence, PHP evidence table, assessments table, then
+   one dossier per CVE — assessment details, bound HTTP evidence, recommended
+   action, verification steps, and references.
+4. Findings, consolidated evidence, general remediation, and limitations.
+
+Trimmed excerpt from the synthetic [example report](docs/example-report.md)
+(synthetic `.test` fixture, not a real target):
+
+```markdown
+## Target: https://affected.example.test/
+
+Verdict: VULNERABLE_VERSION. Observed version matches an affected rule; not proof of exploitability.
+
+### PHP Evidence
+
+| Source | Value | Method | Final URL | Status |
+| --- | --- | --- | --- | --- |
+| header:x-powered-by | PHP/8.4.26 | GET | https://affected.example.test/ | 200 |
+
+#### CVE-2026-109618: PHP memory corruption during out-of-memory handling
+
+| Assessment detail | Value |
+| --- | --- |
+| Conclusion | VULNERABLE_VERSION |
+| Observed version | 8.4.26 |
+| Affected range | >=8.4.0 <8.4.27 |
+| Affected range match | yes |
+| Branch fixed version | 8.4.27 |
+
+##### Bound HTTP Evidence
+
+| Source | Value | Method | Final URL | Status |
+| --- | --- | --- | --- | --- |
+| header:x-powered-by | PHP/8.4.26 | GET | https://affected.example.test/ | 200 |
+
+##### Recommended Action
+
+- Upgrade to the fixed release for the branch or a supported newer release; verify distribution backports with the vendor and restart workers.
+
+##### Verification
+
+- Confirm the PHP version of the web-serving runtime locally, not only the CLI or remote banner.
+- Check vendor security notices and installed package revisions for backported fixes.
+
+##### Authoritative References (Attached Snapshot)
+
+- https://www.php.net/archive/2026.php#2026-10-21-5
+- https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w
+```
+
+The full example also shows the second version-mapped CVE and the
+configuration-dependent CVE staying unknown with its local verification steps.
+
 Reports are written under `--output-dir`, normally `reports/`, with UTC-timestamped
 filenames such as `20261024T121516Z.json`. If that stem is already present, the
 writer uses `20261024T121516Z-1`, `-2`, and so on; all selected formats for one
