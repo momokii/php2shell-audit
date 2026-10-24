@@ -2,6 +2,18 @@
 
 Append-only. Newest entries at the top. One entry per completed or paused session.
 
+## 2026-10-24 - TASK-002 automated guardrails completed
+
+Implemented pre-commit (hooks, Gitleaks 8.30.1, locked Ruff/mypy), pip-audit
+2.10.1 over exported uv.lock, Semgrep 1.182.1 `--config auto --error`, Trivy
+0.76.1 digest-pinned fixture scans, and CI with SHA-pinned actions. Remediated
+pip-audit finding by upgrading pytest 8 to 9 (608 tests green). Triaged four
+Semgrep findings honestly; verified Trivy flag-vs-config behavior empirically.
+
+**Checks:** 608 tests passed with 2 pre-existing Typer warnings; Ruff lint/format
+clean (30 files), strict mypy clean (14 files), `uv build` succeeds. Gitleaks,
+pip-audit, Semgrep, and Trivy gates all green and fail-closed. Full backlog DONE.
+
 ## 2026-10-24 - Evidence-backed remote reports completed
 
 Implemented additive schema-1 evidence linkage, cited affected-range comparison,

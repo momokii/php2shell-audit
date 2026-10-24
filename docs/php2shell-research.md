@@ -1,6 +1,6 @@
 # PHP2Shell Research
 
-Date: 2026-10-24  
+Date: 2026-10-24
 Status: research snapshot
 
 ## Executive Summary

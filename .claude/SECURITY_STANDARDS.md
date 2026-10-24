@@ -128,14 +128,19 @@ and target validation; neither an environment label nor launching the TUI grants
 ## 12. Verification and Enforcement
 
 Once the stack is known, **propose** (do not silently add) automated guardrails and add
-them with user confirmation:
+them with user confirmation. Implemented for this stack under TASK-002
+(2026-10-24) with user authorization to complete the task:
 
-- Pre-commit secret scanning (for example gitleaks).
-- Dependency audit.
-- Static analysis (for example Semgrep).
-- Container image scanning (for example Trivy) if containerized.
-- A CI pipeline running tests, lint, type checks, and these scans.
-- Automated dependency update tooling.
+- Pre-commit secret scanning: Gitleaks v8.30.1 hook (pre-commit-hooks v6.0.0,
+  framework 4.7.0 via `uvx`), plus Gitleaks Action v3.0.0 in CI.
+- Dependency audit: pip-audit 2.10.1 over an exported `uv.lock` snapshot.
+- Static analysis: Semgrep 1.182.1, `--config auto --error`.
+- Container image scanning: Trivy 0.76.1 (digest-pinned) over both lab
+  fixtures; Compose hardening stays asserted by `test_lab_hardening.py`.
+- A CI pipeline (`.github/workflows/ci.yml`, actions pinned by commit SHA)
+  running tests, lint, types, build, and all four scans.
+- Automated dependency update tooling: not adopted; `uv.lock` plus the audit
+  gate covers it for now.
 
 Tool names are examples; choose per stack. Guardrails must fail the build, not warn.
 

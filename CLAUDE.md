@@ -40,11 +40,17 @@ Run from the project root. Lab commands require Docker Compose and a source chec
 | Install dependencies | `uv sync` | Defined |
 | Run (development) | `uv run php2shell-audit --help`; `uv run php2shell-audit tui` | Implemented |
 | Run (production-like) | No production lab deployment | Not applicable to private test fixtures |
-| Test | `uv run pytest` | 567 passed; 2 pre-existing Typer warnings |
+| Test | `uv run pytest` | 608 passed; 2 pre-existing Typer warnings |
 | Lint | `uv run ruff check .` | Clean |
-| Format | `uv run ruff format .` (check: `uv run ruff format --check .`) | 26 files clean |
-| Type check | `uv run mypy src` | 12 source files clean |
+| Format | `uv run ruff format .` (check: `uv run ruff format --check .`) | 30 files clean |
+| Type check | `uv run mypy src` | 14 source files clean |
 | Build | `uv build` | Distribution artifacts built in `dist/` |
+| Pre-commit gates | `uvx pre-commit@4.7.0 run --all-files` | Hygiene, Gitleaks 8.30.1, locked Ruff/mypy |
+| Secret scan | `scripts/checks/secret-scan.sh` | Gitleaks via pinned pre-commit hook |
+| Dependency audit | `scripts/checks/dependency-audit.sh` | pip-audit 2.10.1 over exported uv.lock |
+| Static analysis | `scripts/checks/static-analysis.sh` | Semgrep 1.182.1, `--config auto --error` |
+| Container scan | `scripts/checks/container-scan.sh` | Trivy 0.76.1 over both lab fixtures |
+| Full gate | `scripts/checks/run-all.sh` | Tests, build, and all four scans, fail-fast |
 | Health check | `uv run php2shell-audit lab status` | Local lab services verified healthy, then removed |
 | View logs | `docker compose -f lab/compose.yaml logs` | Local lab only |
 

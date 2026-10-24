@@ -5,6 +5,40 @@ short but complete enough for someone who was not in the session.
 
 ---
 
+**Decision:** Implement TASK-002 guardrails with pinned tools and triaged findings.
+
+**Date:** 2026-10-24
+
+**Context:** Only TASK-002 remained open. The user authorized completion ("continue
+until done, no mistakes"). All third-party versions and action SHAs were verified
+against upstream releases before pinning; the Trivy supply-chain incident
+(GHSA-69fq-xp46-6x23) was reviewed and the safe trivy-action 0.35.0 commit
+confirmed independently.
+
+**Rationale:** Pre-commit (4.7.0) runs hygiene hooks, Gitleaks 8.30.1, and locked
+Ruff/mypy. pip-audit 2.10.1 audits an exported `uv.lock` snapshot (requirements
+scope), which exposed PYSEC-2026-1845 in pytest 8; remediated by upgrading pytest
+8 to 9 and pytest-cov 6 to 7 with a green 608-test suite. A filelock CVE that
+appeared mid-task was proven to be scanner-tool closure noise (absent from
+`uv.lock`), which motivated the requirements scope. Semgrep 1.182.1 runs
+`--config auto --error`; three findings triaged honestly (uv `exclude-newer`
+hardening added; two Python-3.7-compat false positives suppressed inline; one
+Django XSS false positive on test data excluded by full check ID after proving
+inline nosemgrep does not anchor to taint findings). Trivy 0.76.1 (digest-pinned)
+scans both lab fixtures with `--ignore-unfixed` (a CLI-only flag in 0.76, no
+config key exists) plus `.trivyignore` for one fixture-only libbrotli finding;
+Compose files are a verified Trivy no-op, so hardening stays in unit tests.
+
+**Security Implications:** Every gate fails closed locally and in CI. Registry
+rule drift was observed live (a new Semgrep rule fired between runs); the gate
+caught it and it was triaged, not waived. No secrets were encountered; Gitleaks
+is clean. No dependency changes beyond the pytest major bump and lockfile.
+
+**Impact:** TASK-002 DONE. CI (`.github/workflows/ci.yml`, SHA-pinned actions)
+enforces tests, lint, types, build, and all four scans on push/PR.
+
+---
+
 **Decision:** Implement evidence-backed remote reports with fail-closed version rules.
 
 **Date:** 2026-10-24

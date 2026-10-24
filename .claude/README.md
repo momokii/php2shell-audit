@@ -101,6 +101,30 @@ conventions observed in the code, framework-specific security guidance, and veri
 environment procedures. Extend and sharpen rules; never weaken or remove a security
 rule or loosen permissions without explicit user approval.
 
+## Security Guardrails (TASK-002, implemented 2026-10-24)
+
+Every change runs the same fail-closed gates locally and in CI
+(`.github/workflows/ci.yml`, actions pinned by commit SHA):
+
+- Pre-commit (framework 4.7.0 via `uvx`): whitespace/hygiene hooks
+  (pre-commit-hooks v6.0.0), Gitleaks secret scan (v8.30.1), and the locked
+  `ruff`/`mypy` checks. Run `uvx pre-commit@4.7.0 run --all-files`.
+- Dependency audit: `scripts/checks/dependency-audit.sh` exports `uv.lock`
+  and audits it with pip-audit 2.10.1 (requirements scope, so only project
+  dependencies count). Remediated by upgrading pytest 8 to 9 (PYSEC-2026-1845).
+- Static analysis: `scripts/checks/static-analysis.sh` runs Semgrep 1.182.1
+  with `--config auto --error`. Path exclusions live in `.semgrepignore`;
+  rule exclusions use `--exclude-rule` with a justification comment.
+- Container scan: `scripts/checks/container-scan.sh` runs Trivy 0.76.1
+  (digest-pinned image) over both loopback-only lab fixtures with
+  `--ignore-unfixed`; `.trivyignore` records the one accepted fixture-only
+  finding. Compose hardening itself is asserted by `test_lab_hardening.py`.
+- Full local gate: `scripts/checks/run-all.sh` (tests, lint, format, types,
+  build, then all four scans).
+
+Guardrails fail the build; they never warn. Triage decisions (suppressions,
+ignores, version bumps) are recorded in `state/DECISIONS_LOG.md` with reasons.
+
 ## Confirm Context Loaded
 
 Run `/context` in a new session and check the **Memory files** list. It should show the

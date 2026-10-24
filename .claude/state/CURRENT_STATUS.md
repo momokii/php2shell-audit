@@ -30,14 +30,18 @@ Python 3.12/uv with Typer, Rich, Textual, httpx; final internal review approved.
   ranges, request context, provenance, and synthetic portfolio example
 - [x] Evidence verification: 608 tests pass with 2 existing Typer warnings;
   Ruff lint/format clean (30 files), strict mypy clean (14 files), offline build succeeds
+- [x] TASK-002: automated security guardrails implemented with user authorization;
+  pre-commit, Gitleaks, pip-audit, Semgrep, Trivy, and CI all green and fail-closed
+- [x] Guardrail verification: 608 tests pass with 2 existing Typer warnings;
+  Ruff lint/format clean (30 files), strict mypy clean (14 files), `uv build` succeeds
 
 ## In Progress
 
-None; evidence-backed reporting work is complete and verified.
+None; all queued tasks are complete and verified.
 
 ## Blocked
 
-None for the requested portfolio reporting task.
+None. No open backlog items remain.
 
 ## Open Questions
 
@@ -62,5 +66,5 @@ None for the requested portfolio reporting task.
 
 ## Last Updated
 
-2026-10-24: evidence-backed reports, offline example, 608-test verification, and docs.
+2026-10-24: TASK-002 guardrails green; full backlog complete.
 Keep this file under ~80 lines and move older session summaries to `HISTORY.md`.

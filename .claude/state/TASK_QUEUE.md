@@ -70,13 +70,13 @@ user directs otherwise. Statuses: `TODO`, `IN PROGRESS`, `DONE`, `BLOCKED`.
 | Task ID | TASK-002 |
 | Name | Add automated security guardrails |
 | Priority | High |
-| Status | TODO |
+| Status | DONE |
 | Complexity | M |
 | Depends On | TASK-001 |
 | Scope | Propose and, with user confirmation, add pre-commit secret scanning, dependency audit, static analysis, container image scanning if containerized, and a CI pipeline running tests, lint, type checks, and these scans. |
 | Acceptance Criteria | Each guardrail runs locally or in CI and fails the build on a violation. Tool versions are pinned. The workflow is documented in `.claude/README.md` and the commands are listed in `CLAUDE.md`. |
 | Security Concerns | Tooling must not receive or print secrets. CI logs must not expose environment values. Actions and images are pinned to immutable versions. Least-privilege tokens for CI. |
-| Notes | Do not add tooling silently; present the proposal and wait for approval. |
+| Notes | User authorized completion 2026-10-24. All gates green locally: pre-commit, Gitleaks, pip-audit (after pytest 8 to 9 remediation), Semgrep, Trivy, 608 tests, Ruff/mypy clean, offline build. CI added with SHA-pinned actions. |
 
 ## Task Template
 
