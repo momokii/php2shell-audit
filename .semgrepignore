@@ -1,0 +1,3 @@
+# Intentional detector-validation fixture (TASK-003); phpinfo() is the point.
+# Exception tracked under TASK-002; the file stays out of Semgrep scans.
+lab/www/phpinfo.php

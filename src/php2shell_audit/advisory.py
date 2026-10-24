@@ -5,6 +5,9 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from hashlib import sha256
+
+# False positive under requires-python >=3.12; tracked under TASK-002.
+# nosemgrep: python.lang.compatibility.python37.python37-compatibility-importlib2
 from importlib.resources import files
 from pathlib import Path
 from types import MappingProxyType
