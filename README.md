@@ -12,7 +12,7 @@ vulnerabilities, execute code on targets, upload files, or prove exploitability.
 have explicit written authorization to assess. Read [Authorized Use](AUTHORIZED_USE.md)
 before scanning; `--authorized` confirms permission you already hold.
 
-Start with the [quickstart](#quickstart), review the
+Start with [How to use](#how-to-use-end-to-end), review the
 [example report](docs/example-report.md), or inspect the
 [local QA evidence](docs/qa-evidence.md).
 
@@ -21,73 +21,202 @@ Start with the [quickstart](#quickstart), review the
 Implemented and locally verified against the bundled mock suite and the
 loopback Docker lab. The security contract is enforced by the CLI, TUI, scanner,
 and report writers; local QA evidence is recorded in
-[docs/qa-evidence.md](docs/qa-evidence.md). No independent security audit has
-been performed, and no license file has been established yet; no license grant
-is claimed here.
+[docs/qa-evidence.md](docs/qa-evidence.md). Automated guardrails (pre-commit,
+secret scan, dependency audit, static analysis, container scan, CI) all pass.
+No independent security audit has been performed, and no license file has been
+established yet; no license grant is claimed here.
 
 The portfolio focus is the reasoning behind a triage decision: bounded evidence
 collection, explicit uncertainty, source provenance, and actionable remediation.
 Evidence-to-action reports connect each version assessment to its supporting
 observation and advisory rule, as described [below](#reports-and-audit-log).
 
-## Features
+## Purpose
 
-- CLI and Textual TUI with an authorization gate.
-- Safe recon using `GET`/`HEAD`, target validation, budgets, and rate limits.
-- PHP version, SAPI, and WAF/intermediary fingerprinting.
-- Version-to-CVE mapping and a separate configuration-dependent assessment.
-- JSON, JSONL, Markdown, and CSV reports with redacted evidence.
-- Structured JSONL audit log and console progress.
-- Local Docker lab comparing vulnerable and fixed PHP versions.
+One job: tell an authorized operator whether a web target discloses a PHP
+version affected by the PHP2Shell advisories — and show the evidence trail, so
+the conclusion can be checked instead of trusted.
 
-## Requirements and Install
+In scope:
 
-- Python 3.12.
-- `uv` for environment and command management.
-- Docker with Compose only if using the local lab.
+- Fingerprint disclosed PHP versions, SAPI hints, and WAF/intermediary hints
+  from bounded `GET`/`HEAD` responses.
+- Map an observed version to the documented affected ranges and fixed releases
+  of CVE-2026-109618 and CVE-2026-109619, and flag the configuration-dependent
+  CVE-2026-115560 as unverifiable remotely.
+- Produce redacted, explainable reports (JSON, JSONL, Markdown, CSV) with
+  remediation and owner-side verification steps.
 
-From the project root:
+Out of scope:
+
+- Exploitation, proof-of-concept requests, webshells, or remote code execution.
+- Uploads, write methods, credential attacks, session hijacking, or evasion.
+- Mass scanning, target discovery, or assessing anything without permission.
+- Proving exploitability or proving a target is safe.
+
+## How It Works
+
+```mermaid
+flowchart LR
+    A["Operator owns target or holds written permission"] --> B["CLI or TUI with explicit authorization"]
+    B --> C["Safety gates: scope, DNS and IP validation, budgets, rate limits"]
+    C --> D["Bounded GET observations, redirects revalidated"]
+    D --> E["Fingerprint PHP version, SAPI hint, WAF hint"]
+    E --> F["Compare version to advisory ranges"]
+    F --> G["Redacted reports plus audit log"]
+```
+
+Each stage does exactly one thing:
+
+| Stage | What happens | Where |
+|---|---|---|
+| Authorization | CLI requires `--authorized`; the TUI scan button stays disabled until its checkbox is confirmed. A scope file can narrow targets, never grant permission. | `src/php2shell_audit/cli.py`, `src/php2shell_audit/tui.py` |
+| Target safety | Every target (and every redirect hop) is normalized and validated: HTTP(S) only, no userinfo, no private/link-local/metadata destinations unless `--allow-private` is explicitly passed for the local lab. | `src/php2shell_audit/safety.py` |
+| Recon | Budgeted, rate-limited `GET` requests with a bounded body prefix; cookies are never sent or retained. Optional `--deep` adds status-only checks. | `src/php2shell_audit/recon.py` |
+| Fingerprint | PHP version from headers, cookie names, or generator tags; conservative SAPI and WAF hints. Cookie values and response bodies are never kept. | `src/php2shell_audit/fingerprint.py` |
+| Assessment | The observed version is compared to per-CVE affected ranges from the bundled snapshot. Only documented PHP 8.2–8.5 branches support decisive verdicts; everything else stays unknown. | `src/php2shell_audit/advisory.py`, `src/php2shell_audit/scanner.py` |
+| Reporting | Each assessment carries its evidence, range comparison, citations, remediation, and verification steps into redacted JSON/JSONL/Markdown (CSV stays a summary). | `src/php2shell_audit/reporting.py`, `src/php2shell_audit/models.py` |
+
+## How a Verdict Is Decided
+
+```mermaid
+flowchart TD
+    A["PHP signal in bounded response?"] -->|No signal| B["NOT_PHP: not detected, absence not proven"]
+    A -->|Signal, no version| C["UNKNOWN: version hidden, verify serving runtime locally"]
+    A -->|Version X.Y.Z| D{"Documented 8.2-8.5 branch?"}
+    D -->|Below fixed release| E["VULNERABLE_VERSION: patch to the fixed release"]
+    D -->|At or above fixed release| F["NOT_VULNERABLE_VERSION: version rule only, not an all-clear"]
+    D -->|Other branch| G["UNKNOWN: verify vendor backport locally, then migrate"]
+```
+
+What to do for each outcome:
+
+| Verdict | Meaning | Next step |
+|---|---|---|
+| `VULNERABLE_VERSION` | The disclosed version falls inside a documented affected range. Exposure evidence, not exploit proof. | Upgrade to the branch fixed release, restart all serving workers, rescan. |
+| `NOT_VULNERABLE_VERSION` | The disclosed version is at or above the fixed release for that rule. | Still verify the installed runtime and vendor backports; this says nothing about the configuration-dependent issue. |
+| `POTENTIALLY_VULNERABLE_VERSION_UNKNOWN` | Version hidden, branch unsupported, or configuration-dependent condition. | Check the serving runtime locally (`php -v`), confirm distribution patches with the vendor, and review `session.upload_progress.enabled` handling. |
+| `NOT_PHP` | No PHP indicator in the bounded response. | Do not read this as proof PHP is absent; proxies and settings hide banners. |
+| `UNREACHABLE`, `BLOCKED_BY_SAFETY`, `WAF_BLOCKED` | Collection outcomes, not assessments. | Fix network/scope issues, confirm authorization, or accept that an intermediary blocks assessment. |
+
+The configuration-dependent CVE-2026-115560 always stays unknown remotely:
+a version banner cannot confirm the required `session.serialize_handler` and
+`session.upload_progress.enabled` behavior. Its report section tells the owner
+exactly what to inspect locally.
+
+## Why the Results Are Trustworthy
+
+**Advisory sources, not guesses.** The bundled snapshot
+(`src/php2shell_audit/data/php2shell.json`) is a dated, project-maintained
+synthesis — and every claim in it was checked against primary sources:
+
+| Source | What it establishes |
+|---|---|
+| [PHP security announcement, 2026-10-21](https://www.php.net/archive/2026.php#2026-10-21-5) | Fixed releases 8.2.35, 8.3.36, 8.4.27, 8.5.12; unsupported branches; minimal source backports for 7.4/8.0/8.1 |
+| [GHSA-w8hw-w9fx-j79w](https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w) | CVE-2026-109618 mechanism, severity 9.2, mitigations |
+| [GHSA-6wmf-4rv5-p3rp](https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp) | CVE-2026-109619 mechanism, severity 9.2, mitigations |
+| [PHP informational notice, 2026-10-23](https://www.php.net/archive/2026.php#2026-10-23-1) | CVE-2026-115560 configuration condition and interim mitigation |
+| CISA alert, CERT-EU advisory, NCSC-NL guidance | Supporting operational context (see [research notes](docs/php2shell-research.md)) |
+
+The full provenance (snapshot date and SHA-256) ships inside every report, and
+the [research notes](docs/php2shell-research.md) document exactly what is — and
+is not — established for each branch.
+
+**Tested behavior, not just code.** 608 tests cover authorization gates, target
+safety, fingerprinting, redaction, version verdicts (affected, fixed, hidden,
+unsupported, non-PHP, blocked), report formats, and offline end-to-end scans
+through mocked HTTP. Ruff, strict mypy, and the distribution build are clean.
+
+**Guardrails that fail closed.** Pre-commit hygiene, Gitleaks secret scanning,
+pip-audit dependency audit, Semgrep static analysis, Trivy container scans, and
+a CI pipeline enforcing all of them on every push and pull request. Details in
+[`.claude/README.md`](.claude/README.md) and [`CLAUDE.md`](CLAUDE.md).
+
+**Validated against a real lab.** The loopback-only PHP 8.4.26/8.4.27 pair is
+scanned by an automated script that checks exact target URLs, exact versions,
+and per-CVE verdicts — see [checking with the lab](#checking-with-the-lab)
+and [docs/qa-evidence.md](docs/qa-evidence.md).
+
+## How to Use, End to End
+
+Prerequisites: Python 3.12 and `uv`. Docker with Compose is only needed for
+the local lab.
+
+### 1. Install
 
 ```bash
 uv sync
 ```
 
-## Quickstart
-
-Use only a site you own or have explicit written permission to assess.
-`--authorized` confirms existing permission; it does not grant permission.
+### 2. Sanity-check the tool and its advisory data
 
 ```bash
 uv run php2shell-audit version
 uv run php2shell-audit advisories
-uv run php2shell-audit scan https://your-site.example --authorized --output-dir reports
-uv run php2shell-audit tui
 ```
 
-In the TUI, confirm authorization with its checkbox before scanning.
-Launching the interface alone does not authorize network activity.
-
-Preview a scan without network requests or DNS resolution:
+### 3. Preview without touching the network
 
 ```bash
 uv run php2shell-audit scan https://your-site.example --authorized --dry-run
 ```
 
-Expected: dry run prints a validated scan plan without fetching the target.
-Captured local command output is in [docs/qa-evidence.md](docs/qa-evidence.md).
+Expected: a validated scan plan is printed; no DNS lookup or HTTP request is
+made. Use this whenever you are unsure about scope or flags.
 
-### Offline Portfolio Demo
+### 4. Scan a system you own or are authorized to assess
 
-Generate example reports without Docker, DNS lookups, or requests to a website:
+```bash
+uv run php2shell-audit scan https://your-site.example --authorized --output-dir reports
+```
+
+Useful variations, all within the same explicit authorization:
+
+```bash
+# Several targets at once (all must be authorized; capped at 50 after dedup)
+uv run php2shell-audit scan https://your-site.example https://staging.your-site.example --authorized
+
+# Restrict to a pre-approved list (one host or URL per line)
+uv run php2shell-audit scan https://your-site.example --authorized --scope scope.txt
+
+# Bounded deep checks (status-only) plus machine-readable output
+uv run php2shell-audit scan https://your-site.example --authorized --deep --format json
+
+# CI policy: exit 1 on vulnerable (or unknown) findings
+uv run php2shell-audit scan https://your-site.example --authorized --fail-on vulnerable
+```
+
+Prefer the TUI? Run `uv run php2shell-audit tui`, confirm authorization with its
+checkbox, and scan from the interface. Launching it alone authorizes nothing.
+
+### 5. Read the Markdown report
+
+Open the newest `reports/<UTC-stamp>.md`: the summary table, then the per-target
+dossier — observed evidence with its HTTP request context, the affected-range
+comparison, citations, recommended action, and verification steps. Treat the
+JSON report the same way if you automate on it.
+
+### 6. Fix, verify locally, rescan
+
+1. Upgrade to the fixed release for the branch (or a supported newer release).
+2. Restart every serving PHP worker (PHP-FPM/Apache); the CLI banner can differ
+   from the serving SAPI, so confirm with `php -v` on the host or container
+   and check vendor backports rather than trusting a banner.
+3. For CVE-2026-115560, set `session.upload_progress.enabled=0` before request
+   parsing and restart workers.
+4. Rescan the authorized endpoint and compare the before/after reports.
+
+### 7. Try it safely with zero risk
 
 ```bash
 uv run python examples/generate_report.py
 ```
 
-The demo uses controlled HTTP fixtures for affected, fixed, and hidden-version
-outcomes and writes to `reports/demo/`. Its observations are synthetic, not a
-third-party assessment. The committed [example report](docs/example-report.md)
-shows the report produced by this path.
+This exercises the real scanner and writers against fixed in-memory fixtures
+(affected, fixed, hidden-version) with no DNS, HTTP, Docker, or audit log.
+Artifacts land in ignored `reports/demo/`; the committed
+[example report](docs/example-report.md) shows the produced output and is
+labeled synthetic.
 
 ## Scan Options
 
@@ -106,12 +235,12 @@ without DNS, HTTP, logs, or reports.
 | `--format FORMAT` | `all` (default), `json`, `jsonl`, `markdown`/`md`, or `csv`. |
 | `--rate-limit N` | Request rate; default 1 request/second; `0` disables pacing. |
 | `--timeout N` | Positive request timeout; default 10 seconds. |
-| `--max-requests N` | Per-target request budget; default 20. |
+| `--max-requests N` | Per-target request budget; default 20 (1–100). |
 | `--max-targets N` | Target cap; default 10, maximum 50, after normalization/deduplication. |
 | `--deep` | Optional status-only checks for `/.user.ini` and `phpinfo.php`; off by default. |
 | `--allow-private` | Permit RFC1918/loopback for the local lab; metadata remains blocked. |
 | `--dry-run` | Validate and print the plan without DNS, HTTP, logs, or reports. |
-| `--fail-on MODE` | CI policy: `vulnerable`, `unknown`, or `never` (default); matching policy exits 1. |
+| `--fail-on MODE` | CI policy: `vulnerable`, `unknown`, or `never` (default); `unknown` also covers WAF-blocked and unreachable outcomes. |
 | `--verbose` | DEBUG audit logging and console detail without disabling redaction. |
 
 The CLI defaults to 10 targets and caps at 50 after normalization/deduplication.
@@ -167,13 +296,13 @@ Reports and logs are redacted by the tool, but review them before sharing and
 keep them out of source control. Neither format nor redaction provides a
 tamper-proof evidence store.
 
-## Local Lab
+## Checking with the Lab
 
-The minimal PHP 8.4.26/8.4.27 pair validates version detection, not exploitation.
-Default URLs are `http://127.0.0.1:18080` (vulnerable) and
-`http://127.0.0.1:18081` (fixed). Bindings stay on `127.0.0.1`; never publish or
-forward the vulnerable lab publicly. A source checkout is required: lab assets
-are not included in the wheel.
+The lab is a private, loopback-only detector fixture: PHP 8.4.26 (affected) and
+PHP 8.4.27 (fixed) behind `http://127.0.0.1:18080` and `http://127.0.0.1:18081`.
+It validates version detection, not exploitation. Bindings stay on `127.0.0.1`;
+never publish or forward the vulnerable lab publicly. A source checkout is
+required: lab assets are not included in the wheel.
 
 Both fixtures run non-root with dropped capabilities, read-only root filesystems,
 healthchecks, and memory/CPU/process limits. They are still private test targets,
@@ -248,6 +377,17 @@ uv run mypy src
 uv build
 ```
 
+Security gates (all fail-closed; see [`.claude/README.md`](.claude/README.md)):
+
+```bash
+uvx pre-commit@4.7.0 run --all-files
+scripts/checks/secret-scan.sh
+scripts/checks/dependency-audit.sh
+scripts/checks/static-analysis.sh
+scripts/checks/container-scan.sh
+scripts/checks/run-all.sh
+```
+
 Local QA evidence, including the lab scans and report excerpts, is recorded in
 [docs/qa-evidence.md](docs/qa-evidence.md). The lab command resolves
 `lab/compose.yaml` from a source checkout; an installed wheel may not include
@@ -260,15 +400,21 @@ the lab assets, so use `docker compose -f lab/compose.yaml` from the checkout.
 | `src/php2shell_audit/` | CLI/TUI, safety, recon, assessment, reporting, and domain modules. |
 | `src/php2shell_audit/models.py` | Shared targets, evidence, findings, assessments, verdicts, and configuration. |
 | `src/php2shell_audit/data/php2shell.json` | Dated, project-maintained synthesis of upstream advisories and references. |
-| `tests/` | Unit, integration, and interface checks specified by the plan. |
+| `src/php2shell_audit/report_markdown.py` | Markdown rendering of attached assessment data. |
+| `src/php2shell_audit/_advisory_models.py` | Typed per-CVE metadata parsed at the snapshot seam. |
+| `tests/` | Unit, integration, and interface checks; 608 tests, offline fixtures. |
+| `examples/generate_report.py` | Reproducible synthetic portfolio demo (mocked HTTP, no network). |
+| `scripts/checks/` | Local security gates (secret scan, audit, analysis, container scan). |
+| `.github/workflows/ci.yml` | CI enforcing tests, lint, types, build, and all four scans. |
 | `lab/` | Loopback-only Compose services and detector fixtures. |
-| `docs/` | Research documentation and captured QA evidence. |
+| `docs/` | Research notes, design record, example report, and captured QA evidence. |
 | `reports/` | Generated evidence; intended to be gitignored. |
 | `logs/` | Generated structured audit logs; intended to be gitignored. |
 
 ## Further Reading
 
 - [Example evidence-to-action report](docs/example-report.md).
+- [Evidence-backed reporting design](docs/evidence-report-design.md).
 - [Research snapshot and fixed-version matrix](docs/php2shell-research.md).
 - [Authorized use and evidence handling](AUTHORIZED_USE.md).
 - [Security policy, controls, and private reporting](SECURITY.md).
